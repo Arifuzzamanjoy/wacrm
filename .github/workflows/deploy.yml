@@ -18,4 +18,4 @@ jobs:
           script: |
             cd /home/ubuntu/CRM/wacrm
             git pull origin main
-            docker compose up -d --build
+            docker compose --env-file .env.local up -d --build
