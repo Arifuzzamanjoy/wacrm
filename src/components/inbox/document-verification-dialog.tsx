@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 import { addMonths, addYears, format } from "date-fns";
 import { useTranslations } from "next-intl";
+import { isProxiedMediaUrl, loadMediaBlob } from "@/lib/media/blob-cache";
 
 interface DocumentVerificationDialogProps {
   open: boolean;
@@ -58,6 +59,11 @@ export function DocumentVerificationDialog({
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
 
+  // Resolved media state
+  const [resolvedBlobUrl, setResolvedBlobUrl] = useState<string | null>(null);
+  const [mediaMimeType, setMediaMimeType] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+
   useEffect(() => {
     if (document) {
       setExpiryDate(document.expiry_date || "");
@@ -67,14 +73,56 @@ export function DocumentVerificationDialog({
     }
   }, [document]);
 
+  // Resolve proxied media blob or direct URL
+  useEffect(() => {
+    if (!document?.file_url) {
+      setResolvedBlobUrl(null);
+      setMediaMimeType(null);
+      setMediaLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setMediaLoading(true);
+
+    if (isProxiedMediaUrl(document.file_url)) {
+      loadMediaBlob(document.file_url)
+        .then((blob) => {
+          if (cancelled) return;
+          objectUrl = URL.createObjectURL(blob);
+          setResolvedBlobUrl(objectUrl);
+          setMediaMimeType(blob.type);
+          setMediaLoading(false);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.error("Failed to load proxied media blob", err);
+          setMediaLoading(false);
+        });
+    } else {
+      const url = document.file_url;
+      const isPdfUrl = url.toLowerCase().includes(".pdf");
+      setResolvedBlobUrl(url);
+      setMediaMimeType(isPdfUrl ? "application/pdf" : "image/jpeg");
+      setMediaLoading(false);
+    }
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [document?.file_url]);
+
   if (!document || !contact) return null;
 
   const isPdf =
+    mediaMimeType?.includes("pdf") ||
     document.file_url?.toLowerCase().includes(".pdf") ||
     document.title.toLowerCase().includes("pdf");
-  const isImage =
-    document.file_url &&
-    (document.file_url.match(/\.(jpeg|jpg|png|webp|gif)($|\?)/i) || !isPdf);
+  const isImage = mediaMimeType?.startsWith("image/") || (!isPdf && !!document.file_url);
 
   const handleApplyExpiryPreset = (years: number, months = 0) => {
     let d = new Date();
@@ -194,13 +242,24 @@ export function DocumentVerificationDialog({
         <div className="flex-1 grid grid-cols-1 md:grid-cols-12 min-h-0 overflow-hidden">
           {/* Left: Preview Area (7 cols) */}
           <div className="md:col-span-7 bg-muted/40 border-r border-border flex flex-col items-center justify-center p-4 relative overflow-hidden min-h-[320px]">
-            {document.file_url ? (
+            {mediaLoading ? (
+              <div className="flex flex-col items-center justify-center p-8 text-muted-foreground gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="text-xs">Loading document preview...</span>
+              </div>
+            ) : document.file_url ? (
               <>
-                {isImage && (
+                {isPdf ? (
+                  <iframe
+                    src={`${resolvedBlobUrl || document.file_url}#toolbar=0`}
+                    title={document.title}
+                    className="w-full h-full min-h-[420px] rounded-md border border-border bg-white"
+                  />
+                ) : (
                   <div className="relative w-full h-full flex items-center justify-center overflow-auto p-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={document.file_url}
+                      src={resolvedBlobUrl || document.file_url}
                       alt={document.title}
                       style={{
                         transform: `scale(${zoom}) rotate(${rotation}deg)`,
@@ -211,16 +270,8 @@ export function DocumentVerificationDialog({
                   </div>
                 )}
 
-                {isPdf && (
-                  <iframe
-                    src={document.file_url}
-                    title={document.title}
-                    className="w-full h-full min-h-[400px] rounded-md border border-border"
-                  />
-                )}
-
                 {/* Media preview toolbar */}
-                {isImage && (
+                {isImage && !isPdf && (
                   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-background/90 backdrop-blur-md px-2 py-1 rounded-full border border-border shadow-md">
                     <Button
                       variant="ghost"
