@@ -667,3 +667,75 @@ export interface QuickReply {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================
+// Visa Document Checklists & Verification Hub (migration 039)
+// ============================================================
+
+export type DocumentStatus = 'missing' | 'submitted' | 'verified' | 'rejected';
+
+export interface ChecklistTemplateItem {
+  title: string;
+  description?: string;
+  is_mandatory: boolean;
+  accepted_formats?: string[];
+  expiry_required?: boolean;
+}
+
+export interface VisaChecklistTemplate {
+  id: string;
+  account_id?: string | null;
+  country_code: string;
+  visa_category: string;
+  name: string;
+  default_items: ChecklistTemplateItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContactDocument {
+  id: string;
+  account_id: string;
+  contact_id: string;
+  visa_category: string;
+  title: string;
+  description?: string | null;
+  is_mandatory: boolean;
+  status: DocumentStatus;
+  rejection_reason?: string | null;
+  file_url?: string | null;
+  message_id?: string | null;
+  expiry_date?: string | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApplyTemplatePayload {
+  template_id: string;
+  visa_category?: string;
+}
+
+export interface CreateContactDocumentPayload {
+  title: string;
+  description?: string;
+  visa_category: string;
+  is_mandatory?: boolean;
+  status?: DocumentStatus;
+  file_url?: string;
+  message_id?: string;
+  expiry_date?: string;
+}
+
+export interface UpdateContactDocumentPayload {
+  status?: DocumentStatus;
+  rejection_reason?: string | null;
+  file_url?: string | null;
+  message_id?: string | null;
+  expiry_date?: string | null;
+  title?: string;
+  description?: string | null;
+  is_mandatory?: boolean;
+}
+
