@@ -254,6 +254,31 @@ export function MessageComposer({
     [adjustHeight]
   );
 
+  // External triggers (e.g. 1-click Document Checklist Chaser reminder)
+  useEffect(() => {
+    const handlePrefill = (
+      e: Event
+    ) => {
+      const customEvent = e as CustomEvent<{ text?: string; conversationId?: string }>;
+      if (
+        !customEvent.detail?.conversationId ||
+        customEvent.detail.conversationId === conversationId
+      ) {
+        if (typeof customEvent.detail?.text === "string") {
+          setText(customEvent.detail.text);
+          setTimeout(() => {
+            adjustHeight();
+            textareaRef.current?.focus();
+          }, 50);
+        }
+      }
+    };
+    window.addEventListener("wacrm:prefill-composer", handlePrefill);
+    return () => {
+      window.removeEventListener("wacrm:prefill-composer", handlePrefill);
+    };
+  }, [conversationId, adjustHeight]);
+
   // Ask the AI assistant for a suggested reply and drop it into the
   // composer for the agent to edit + send. Read-only server-side —
   // nothing is sent until the agent hits Send.

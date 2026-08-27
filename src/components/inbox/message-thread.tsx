@@ -50,6 +50,7 @@ import {
 } from "./message-composer";
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
+import { AttachToChecklistModal } from "./attach-to-checklist-modal";
 import { AiThreadBanner } from "./ai-thread-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
@@ -207,6 +208,8 @@ export function MessageThread({
     conversationId: string;
     messageId: string;
   } | null>(null);
+  const [attachToChecklistMessage, setAttachToChecklistMessage] = useState<Message | null>(null);
+  const [attachModalOpen, setAttachModalOpen] = useState(false);
 
   // Profiles are bounded by RLS to rows the current user is allowed to
   // see — today that's just the current user, but the dropdown keeps the
@@ -1137,6 +1140,10 @@ export function MessageThread({
                         onReact={(emoji) => {
                           if (emoji) void postReaction(msg.id, emoji);
                         }}
+                        onAttachToChecklist={() => {
+                          setAttachToChecklistMessage(msg);
+                          setAttachModalOpen(true);
+                        }}
                       >
                         <MessageBubble
                           message={msg}
@@ -1197,6 +1204,14 @@ export function MessageThread({
         activeId={mediaMessageId}
         onActiveIdChange={handleMediaChange}
         contactLabel={contactDisplayName}
+      />
+
+      {/* Attach inbound WhatsApp media to checklist */}
+      <AttachToChecklistModal
+        open={attachModalOpen}
+        onOpenChange={setAttachModalOpen}
+        message={attachToChecklistMessage}
+        contact={contact}
       />
     </div>
   );
