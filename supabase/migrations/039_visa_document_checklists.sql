@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS contact_documents (
   message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
   expiry_date DATE,
   verified_at TIMESTAMPTZ,
-  verified_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  verified_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
