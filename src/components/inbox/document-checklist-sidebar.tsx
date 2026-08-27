@@ -5,13 +5,11 @@ import type {
   Contact,
   ContactDocument,
   VisaChecklistTemplate,
-  DocumentStatus,
 } from "@/types";
 import {
   FileCheck2,
   Plus,
   Send,
-  AlertCircle,
   CheckCircle2,
   Clock,
   XCircle,
@@ -23,12 +21,9 @@ import {
   Sparkles,
   Loader2,
   Calendar,
-  Copy,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -89,8 +84,8 @@ export function DocumentChecklistSidebar({
         const data = await res.json();
         if (!cancelled && res.ok && data.templates) {
           setTemplates(data.templates);
-          if (data.templates.length > 0 && !selectedTemplateId) {
-            setSelectedTemplateId(data.templates[0].id);
+          if (data.templates.length > 0) {
+            setSelectedTemplateId((prev) => prev || data.templates[0].id);
           }
         }
       } catch (err) {
@@ -129,14 +124,15 @@ export function DocumentChecklistSidebar({
 
   // Listen to global document update events
   useEffect(() => {
-    const handleDocumentUpdate = (e: CustomEvent<{ contactId?: string }>) => {
-      if (!e.detail?.contactId || e.detail.contactId === contact?.id) {
+    const handleDocumentUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<{ contactId?: string }>;
+      if (!customEvent.detail?.contactId || customEvent.detail.contactId === contact?.id) {
         fetchDocuments();
       }
     };
-    window.addEventListener("wacrm:documents-updated" as any, handleDocumentUpdate);
+    window.addEventListener("wacrm:documents-updated", handleDocumentUpdate);
     return () => {
-      window.removeEventListener("wacrm:documents-updated" as any, handleDocumentUpdate);
+      window.removeEventListener("wacrm:documents-updated", handleDocumentUpdate);
     };
   }, [contact?.id, fetchDocuments]);
 
@@ -236,7 +232,7 @@ export function DocumentChecklistSidebar({
       if (!res.ok) throw new Error("Failed to delete document");
       toast.success(t("docDeleted"));
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
-    } catch (err) {
+    } catch {
       toast.error("Could not delete item");
     }
   };

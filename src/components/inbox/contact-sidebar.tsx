@@ -10,7 +10,6 @@ import {
   Mail,
   Copy,
   Check,
-  User,
   Tag as TagIcon,
   DollarSign,
   StickyNote,
@@ -32,7 +31,6 @@ interface ContactSidebarProps {
 export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
-  const tChecklist = useTranslations("Inbox.checklist");
 
   const { accountId } = useAuth();
   const [activeTab, setActiveTab] = useState<"details" | "documents">("details");
@@ -80,6 +78,7 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
   }, [contact]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchContactData();
   }, [fetchContactData]);
 

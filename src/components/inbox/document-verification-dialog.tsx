@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +17,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
-  Download,
   Calendar,
-  FileText,
   FileQuestion,
   Loader2,
   ZoomIn,

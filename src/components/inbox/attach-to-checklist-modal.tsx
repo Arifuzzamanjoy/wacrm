@@ -1,27 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Contact, ContactDocument, Message } from "@/types";
 import {
   FileCheck2,
   FileText,
-  Image as ImageIcon,
   Video,
   Loader2,
   CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
   Clock,
-  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
