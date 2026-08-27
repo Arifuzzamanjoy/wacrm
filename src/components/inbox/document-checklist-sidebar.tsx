@@ -16,6 +16,7 @@ import {
   HelpCircle,
   Trash2,
   Eye,
+  Pencil,
   ChevronDown,
   Layers,
   Sparkles,
@@ -71,6 +72,14 @@ export function DocumentChecklistSidebar({
   const [customDesc, setCustomDesc] = useState("");
   const [customMandatory, setCustomMandatory] = useState(true);
   const [creatingCustom, setCreatingCustom] = useState(false);
+
+  // Edit document label modal
+  const [editDoc, setEditDoc] = useState<ContactDocument | null>(null);
+  const [editDocOpen, setEditDocOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editMandatory, setEditMandatory] = useState(true);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // Filter state
   const [filter, setFilter] = useState<"all" | "pending" | "verified" | "missing">("all");
@@ -240,6 +249,41 @@ export function DocumentChecklistSidebar({
   const handleOpenReview = (doc: ContactDocument) => {
     setVerificationDoc(doc);
     setVerificationOpen(true);
+  };
+
+  const handleOpenEdit = (doc: ContactDocument) => {
+    setEditDoc(doc);
+    setEditTitle(doc.title);
+    setEditDesc(doc.description || "");
+    setEditMandatory(doc.is_mandatory);
+    setEditDocOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!contact || !editDoc || !editTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/contacts/${contact.id}/documents`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editDoc.id,
+          title: editTitle.trim(),
+          description: editDesc.trim() || null,
+          is_mandatory: editMandatory,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update document");
+
+      toast.success(t("docUpdated"));
+      setDocuments((prev) => prev.map((d) => (d.id === editDoc.id ? data.document : d)));
+      setEditDocOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error updating document");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const handleSendReminder = () => {
@@ -471,6 +515,10 @@ export function DocumentChecklistSidebar({
                           <Eye className="h-3.5 w-3.5 mr-1.5" />
                           {t("reviewInspect")}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenEdit(doc)}>
+                          <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                          {t("editLabel")}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteDocument(doc.id)}
                           className="text-rose-600 focus:text-rose-600"
@@ -661,6 +709,71 @@ export function DocumentChecklistSidebar({
             >
               {creatingCustom ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
               {t("addDocument")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Document Label Dialog */}
+      <Dialog open={editDocOpen} onOpenChange={setEditDocOpen}>
+        <DialogContent className="sm:max-w-md bg-background border-border">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold">{t("editDocument")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1">
+                {t("documentTitleLabel")} *
+              </label>
+              <Input
+                placeholder={t("docTitlePlaceholder")}
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="text-xs h-8"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1">
+                {t("instructionsGuidelineLabel")}
+              </label>
+              <Textarea
+                placeholder={t("guidelinePlaceholder")}
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                rows={2}
+                className="text-xs resize-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                id="edit-is-mandatory"
+                checked={editMandatory}
+                onCheckedChange={(checked) => setEditMandatory(!!checked)}
+              />
+              <label htmlFor="edit-is-mandatory" className="text-xs font-medium text-foreground cursor-pointer">
+                {t("mandatoryRequirement")}
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8"
+              onClick={() => setEditDocOpen(false)}
+            >
+              {t("cancel")}
+            </Button>
+            <Button
+              size="sm"
+              className="text-xs h-8 bg-primary hover:bg-primary/90"
+              onClick={handleSaveEdit}
+              disabled={savingEdit || !editTitle.trim()}
+            >
+              {savingEdit ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              {t("saveChanges")}
             </Button>
           </DialogFooter>
         </DialogContent>
