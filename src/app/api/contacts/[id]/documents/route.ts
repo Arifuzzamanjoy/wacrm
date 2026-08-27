@@ -191,7 +191,10 @@ export async function PATCH(
 
     if (updateError) {
       console.error("[PATCH /api/contacts/[id]/documents] update error:", updateError);
-      return NextResponse.json({ error: "Failed to update document" }, { status: 500 });
+      return NextResponse.json(
+        { error: updateError.message || "Failed to update document" },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true, document: updatedDoc });
