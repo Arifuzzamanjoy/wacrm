@@ -671,6 +671,24 @@
       "toastFailedDeletePipeline": "Failed to delete pipeline",
       "toastDeleted": "Pipeline deleted"
     },
+    "notifications": {
+      "title": "Stage WhatsApp Notification",
+      "description": "Automatically send a WhatsApp message to the contact when a deal enters this stage.",
+      "enable": "Enable WhatsApp notification on stage entry",
+      "mode": "Notification Mode",
+      "modeTemplate": "Meta Approved Template",
+      "modeCustomText": "Direct Message Text",
+      "selectTemplate": "Select an approved template",
+      "templateVariables": "Template Variables",
+      "varPlaceholder": "e.g. {{contact.name}}",
+      "customTextPlaceholder": "Hi {{contact.name}}, your application for {{deal.title}} is now in {{stage.name}}.",
+      "availableVariables": "Available Variables",
+      "preview": "Message Preview",
+      "save": "Save Notification Settings",
+      "autoEnabled": "Auto-WhatsApp active",
+      "toastNotificationSent": "Deal moved to {stage} · WhatsApp notification sent",
+      "toastMoveFailed": "Failed to update deal stage"
+    },
     "analytics": {
       "totalDeals": "Total Deals",
       "totalDealsTooltip": "Count of every deal in this pipeline that isn't marked as Lost. Won deals are still included.",
