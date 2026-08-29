@@ -349,6 +349,7 @@ export interface PipelineStage {
   position: number;
   color: string;
   created_at: string;
+  whatsapp_notification?: StageWhatsAppNotification | null;
 }
 
 export type DealStatus = 'open' | 'won' | 'lost';
@@ -452,7 +453,8 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  | 'deal_stage_changed';
 
 export type AutomationStepType =
   | 'send_message'
@@ -506,6 +508,7 @@ export type AutomationTriggerConfig =
   | TagTriggerConfig
   | TimeBasedTriggerConfig
   | InteractiveReplyTriggerConfig
+  | DealStageTriggerConfig
   | Record<string, unknown>;
 
 export interface SendMessageStepConfig {
@@ -810,5 +813,39 @@ export interface AddCaseMemberPayload {
   role: CaseMemberRole;
   label?: string | null;
   notes?: string | null;
+}
+
+// ============================================================
+// Stage Milestone Notifications (migration 041)
+// ============================================================
+
+export interface StageWhatsAppNotification {
+  enabled: boolean;
+  mode: 'template' | 'custom_text';
+  template_name?: string;
+  template_language?: string;
+  /** Mapping of positional variable indexes (e.g. ["{{contact.name}}", "{{deal.title}}"]) */
+  template_params?: string[];
+  custom_text?: string;
+}
+
+export interface DealStageHistory {
+  id: string;
+  account_id: string;
+  deal_id: string;
+  from_stage_id: string | null;
+  to_stage_id: string;
+  user_id: string | null;
+  notification_sent: boolean;
+  notification_template?: string | null;
+  whatsapp_message_id?: string | null;
+  error_message?: string | null;
+  created_at: string;
+}
+
+export interface DealStageTriggerConfig {
+  pipeline_id?: string;
+  stage_id?: string;
+  from_stage_id?: string;
 }
 

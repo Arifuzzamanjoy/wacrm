@@ -47,6 +47,7 @@ const SPEC_DEFAULT_STAGES = [
 
 export default function PipelinesPage() {
   const t = useTranslations("Pipelines.page");
+  const tNotif = useTranslations("Pipelines.notifications");
   const supabase = createClient();
   const canEditSettings = useCan("edit-settings");
   const canCreateDeals = useCan("send-messages");
@@ -175,9 +176,7 @@ export default function PipelinesPage() {
   // callbacks (not synchronous in the effect body).
   useEffect(() => {
     if (!selectedPipelineId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStages([]);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDeals([]);
       return;
     }
@@ -216,20 +215,41 @@ export default function PipelinesPage() {
 
   const handleDealMoved = useCallback(
     async (dealId: string, newStageId: string) => {
+      const prevDeals = deals;
+      const targetStage = stages.find((s) => s.id === newStageId);
+
       // Optimistic update — board already animated; just persist.
       setDeals((prev) =>
         prev.map((d) => (d.id === dealId ? { ...d, stage_id: newStageId } : d)),
       );
-      const { error } = await supabase
-        .from("deals")
-        .update({ stage_id: newStageId })
-        .eq("id", dealId);
-      if (error) {
-        toast.error(t("toastFailedMoveDeal"));
+
+      try {
+        const res = await fetch(`/api/deals/${dealId}/stage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_stage_id: newStageId }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || t("toastFailedMoveDeal"));
+        }
+
+        const data = await res.json();
+        if (data.notification_sent) {
+          toast.success(
+            tNotif("toastNotificationSent", {
+              stage: targetStage?.name || "Stage",
+            })
+          );
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("toastFailedMoveDeal"));
+        setDeals(prevDeals);
         refreshDeals();
       }
     },
-    [supabase, refreshDeals, t],
+    [deals, stages, refreshDeals, t, tNotif],
   );
 
   const handleAddDeal = useCallback(

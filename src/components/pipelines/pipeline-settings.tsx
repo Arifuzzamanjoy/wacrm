@@ -33,9 +33,11 @@ import {
   Plus,
   GripVertical,
   AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { StageNotificationDialog } from "./stage-notification-dialog";
 
 const STAGE_COLORS = [
   "#3b82f6",
@@ -79,6 +81,8 @@ export function PipelineSettings({
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [notifStage, setNotifStage] = useState<PipelineStage | null>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   // Reset form state when the dialog opens or its prop inputs change
   // — legitimate prop-driven sync.
@@ -116,6 +120,7 @@ export function PipelineSettings({
       name: s.name,
       color: s.color,
       position: i,
+      whatsapp_notification: s.whatsapp_notification ?? null,
     }));
 
     const [renameRes, stagesRes] = await Promise.all([
@@ -274,6 +279,10 @@ export function PipelineSettings({
                             updated[index] = { ...updated[index], color: v };
                             setLocalStages(updated);
                           }}
+                          onOpenNotification={() => {
+                            setNotifStage(stage);
+                            setNotifOpen(true);
+                          }}
                           onRemove={() => handleRemoveStage(stage.id)}
                           colors={STAGE_COLORS}
                           t={t}
@@ -359,6 +368,25 @@ export function PipelineSettings({
             </DialogFooter>
           </>
         )}
+
+        {notifStage && (
+          <StageNotificationDialog
+            open={notifOpen}
+            onOpenChange={(isOpen) => {
+              setNotifOpen(isOpen);
+              if (!isOpen) setNotifStage(null);
+            }}
+            stage={notifStage}
+            onSave={(cfg) => {
+              setLocalStages((prev) =>
+                prev.map((s) =>
+                  s.id === notifStage.id ? { ...s, whatsapp_notification: cfg } : s
+                )
+              );
+              setNotifStage(null);
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -368,6 +396,7 @@ function SortableStageRow({
   stage,
   onNameChange,
   onColorChange,
+  onOpenNotification,
   onRemove,
   colors,
   t,
@@ -375,6 +404,7 @@ function SortableStageRow({
   stage: PipelineStage;
   onNameChange: (v: string) => void;
   onColorChange: (v: string) => void;
+  onOpenNotification: () => void;
   onRemove: () => void;
   colors: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -388,6 +418,8 @@ function SortableStageRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const isNotifActive = stage.whatsapp_notification?.enabled;
 
   return (
     <div
@@ -411,6 +443,28 @@ function SortableStageRow({
         className="h-7 flex-1 border-transparent bg-transparent text-sm text-foreground focus:border-border"
       />
       <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        onClick={onOpenNotification}
+        className={`relative ${
+          isNotifActive
+            ? "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+        title={
+          isNotifActive
+            ? "WhatsApp notification active"
+            : "Configure WhatsApp notification"
+        }
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        {isNotifActive && (
+          <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400" />
+        )}
+      </Button>
+      <Button
+        type="button"
         variant="ghost"
         size="icon-xs"
         onClick={onRemove}

@@ -671,6 +671,24 @@
       "toastFailedDeletePipeline": "파이프라인을 삭제하지 못했습니다",
       "toastDeleted": "파이프라인이 삭제되었습니다"
     },
+    "notifications": {
+      "title": "단계별 WhatsApp 알림",
+      "description": "딜이 이 단계에 진입할 때 연락처로 WhatsApp 메시지를 자동 발송합니다.",
+      "enable": "단계 진입 시 WhatsApp 알림 활성화",
+      "mode": "알림 모드",
+      "modeTemplate": "Meta 승인 템플릿",
+      "modeCustomText": "직접 메시지 텍스트",
+      "selectTemplate": "승인된 템플릿 선택",
+      "templateVariables": "템플릿 변수",
+      "varPlaceholder": "예: {{contact.name}}",
+      "customTextPlaceholder": "안녕하세요 {{contact.name}}님, {{deal.title}} 관련 진행 상황이 '{{stage.name}}' 단계로 업데이트되었습니다.",
+      "availableVariables": "사용 가능한 변수",
+      "preview": "메시지 미리보기",
+      "save": "알림 설정 저장",
+      "autoEnabled": "자동 WhatsApp 활성",
+      "toastNotificationSent": "{stage} 단계로 이동됨 · WhatsApp 알림 전송됨",
+      "toastMoveFailed": "딜 단계 업데이트에 실패했습니다"
+    },
     "analytics": {
       "totalDeals": "전체 딜",
       "totalDealsTooltip": "실패로 표시되지 않은, 이 파이프라인의 모든 딜 수입니다. 성사된 딜도 포함됩니다.",

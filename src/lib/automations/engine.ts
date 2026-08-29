@@ -17,6 +17,7 @@ import type {
   WaitStepConfig,
   CreateDealStepConfig,
   AssignConversationStepConfig,
+  DealStageTriggerConfig,
 } from '@/types'
 import { supabaseAdmin } from './admin-client'
 import { addContactTagIfAbsent } from '@/lib/contacts/tag-write'
@@ -728,6 +729,14 @@ export function triggerMatches(automation: Automation, ctx: AutomationContext | 
     const cfg = automation.trigger_config as TagTriggerConfig
     const tagId = ctx?.tag_id
     return Boolean(tagId && cfg?.tag_id && cfg.tag_id === tagId)
+  }
+
+  if (automation.trigger_type === 'deal_stage_changed') {
+    const cfg = automation.trigger_config as DealStageTriggerConfig
+    if (cfg?.pipeline_id && cfg.pipeline_id !== ctx?.vars?.pipeline_id) return false
+    if (cfg?.stage_id && cfg.stage_id !== ctx?.vars?.stage_id) return false
+    if (cfg?.from_stage_id && cfg.from_stage_id !== ctx?.vars?.previous_stage_id) return false
+    return true
   }
 
   return true

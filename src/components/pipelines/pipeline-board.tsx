@@ -17,7 +17,7 @@ import {
 import type { Deal, PipelineStage } from "@/types";
 import { DealCard } from "./deal-card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
@@ -218,9 +218,20 @@ function StageColumn({
         style={{ backgroundColor: stage.color }}
       />
       <div className="flex items-center justify-between pt-3">
-        <h3 className="truncate text-sm font-semibold text-foreground">
-          {stage.name}
-        </h3>
+        <div className="flex items-center gap-1.5 min-w-0 pr-2">
+          <h3 className="truncate text-sm font-semibold text-foreground">
+            {stage.name}
+          </h3>
+          {stage.whatsapp_notification?.enabled && (
+            <span
+              title="⚡ Auto WhatsApp active"
+              className="inline-flex items-center shrink-0 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20"
+            >
+              <MessageSquare className="mr-1 h-3 w-3" />
+              Auto
+            </span>
+          )}
+        </div>
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
           {deals.length}
         </span>
