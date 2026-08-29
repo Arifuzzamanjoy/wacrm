@@ -16,6 +16,12 @@ import {
   HelpCircle,
   UserPlus,
   FileText,
+  ClipboardList,
+  CalendarCheck,
+  FileSearch,
+  Star,
+  Sparkles,
+  ListTodo,
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
@@ -71,7 +77,16 @@ interface TemplateSummary {
   slug: string;
   name: string;
   description: string;
-  icon: "MessageSquare" | "HelpCircle" | "UserPlus";
+  icon:
+    | "MessageSquare"
+    | "HelpCircle"
+    | "UserPlus"
+    | "ClipboardList"
+    | "CalendarCheck"
+    | "FileSearch"
+    | "Star"
+    | "Sparkles"
+    | "ListTodo";
   trigger_type: string;
   node_count: number;
 }
@@ -80,6 +95,12 @@ const TEMPLATE_ICONS = {
   MessageSquare,
   HelpCircle,
   UserPlus,
+  ClipboardList,
+  CalendarCheck,
+  FileSearch,
+  Star,
+  Sparkles,
+  ListTodo,
 } as const;
 
 export default function FlowsPage() {
