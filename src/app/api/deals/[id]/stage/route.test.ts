@@ -43,10 +43,18 @@ const authContext = {
   account: { id: 'acc-123', name: 'Acme Corp' },
 };
 
-function createMockDb(dealData: any, stageData: any) {
-  const historyInserts: any[] = [];
+interface MockDb {
+  _historyInserts: Record<string, unknown>[];
+  from: (table: string) => Record<string, unknown>;
+}
 
-  const db: any = {
+function createMockDb(
+  dealData: Record<string, unknown> | null,
+  stageData: (Record<string, unknown> & { id?: string }) | null
+): MockDb {
+  const historyInserts: Record<string, unknown>[] = [];
+
+  const db: MockDb = {
     _historyInserts: historyInserts,
     from: vi.fn((table: string) => {
       if (table === 'deals') {
@@ -65,7 +73,7 @@ function createMockDb(dealData: any, stageData: any) {
             eq: vi.fn(() => ({
               select: vi.fn(() => ({
                 single: vi.fn().mockResolvedValue({
-                  data: { ...dealData, stage_id: stageData?.id },
+                  data: dealData ? { ...dealData, stage_id: stageData?.id } : null,
                   error: null,
                 }),
               })),
@@ -137,7 +145,7 @@ function createMockDb(dealData: any, stageData: any) {
       }
       if (table === 'deal_stage_history') {
         return {
-          insert: vi.fn(async (row: any) => {
+          insert: vi.fn(async (row: Record<string, unknown>) => {
             historyInserts.push(row);
             return { error: null };
           }),
