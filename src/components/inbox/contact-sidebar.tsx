@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { DocumentChecklistSidebar } from "./document-checklist-sidebar";
+import { CaseGroupWidget } from "@/components/cases/case-group-widget";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -34,12 +35,18 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
 
   const { accountId } = useAuth();
   const [activeTab, setActiveTab] = useState<"details" | "documents">("details");
+  const [selectedDocsContact, setSelectedDocsContact] = useState<Contact | null>(null);
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+
+  // Sync selectedDocsContact when contact prop changes
+  useEffect(() => {
+    setSelectedDocsContact(contact);
+  }, [contact]);
 
   const fetchContactData = useCallback(async () => {
     if (!contact) return;
@@ -242,6 +249,18 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
             {/* Divider */}
             <div className="my-4 border-t border-border" />
 
+            {/* Cases & Group Linking */}
+            <CaseGroupWidget
+              contact={contact}
+              onViewDocs={(targetContact) => {
+                setSelectedDocsContact(targetContact);
+                setActiveTab("documents");
+              }}
+            />
+
+            {/* Divider */}
+            <div className="my-4 border-t border-border" />
+
             {/* Active Deals */}
             <div>
               <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -335,6 +354,7 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
         <div className="flex-1 min-h-0">
           <DocumentChecklistSidebar
             contact={contact}
+            initialContact={selectedDocsContact}
             onPrefillReminder={onPrefillReminder}
           />
         </div>
