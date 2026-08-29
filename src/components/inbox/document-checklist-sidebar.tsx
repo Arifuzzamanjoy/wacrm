@@ -5,6 +5,7 @@ import type {
   Contact,
   ContactDocument,
   VisaChecklistTemplate,
+  CaseMemberRole,
 } from "@/types";
 import {
   FileCheck2,
@@ -22,7 +23,9 @@ import {
   Sparkles,
   Loader2,
   Calendar,
+  Users,
 } from "lucide-react";
+import { getRoleIcon } from "@/components/cases/case-member-card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -49,19 +52,99 @@ import { useTranslations } from "next-intl";
 
 interface DocumentChecklistSidebarProps {
   contact: Contact | null;
+  initialContact?: Contact | null;
   onPrefillReminder?: (text: string) => void;
 }
 
 export function DocumentChecklistSidebar({
   contact,
+  initialContact,
   onPrefillReminder,
 }: DocumentChecklistSidebarProps) {
   const t = useTranslations("Inbox.checklist");
+  const tCases = useTranslations("Cases");
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(initialContact || contact);
+  const targetContact = selectedContact || contact;
+
   const [documents, setDocuments] = useState<ContactDocument[]>([]);
   const [templates, setTemplates] = useState<VisaChecklistTemplate[]>([]);
+  const [caseMembers, setCaseMembers] = useState<
+    { contact_id: string; contact?: Contact | null; role: string; label?: string | null }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
+  // Sync selected contact when initialContact or contact prop changes
+  useEffect(() => {
+    if (initialContact) {
+      setSelectedContact(initialContact);
+    } else {
+      setSelectedContact(contact);
+    }
+  }, [initialContact, contact]);
+
+  // Fetch cases to populate member switcher
+  useEffect(() => {
+    if (!contact) {
+      setCaseMembers([]);
+      return;
+    }
+    const currentContactId = contact.id;
+    const currentContactObj = contact;
+    let cancelled = false;
+
+    async function loadCaseMembers() {
+      try {
+        const res = await fetch(`/api/cases?contact_id=${currentContactId}`);
+        const data = await res.json();
+        if (!cancelled && res.ok && Array.isArray(data.cases)) {
+          const membersMap = new Map<
+            string,
+            { contact_id: string; contact?: Contact | null; role: string; label?: string | null }
+          >();
+
+          // Always ensure current contact is in the list
+          membersMap.set(currentContactId, {
+            contact_id: currentContactId,
+            contact: currentContactObj,
+            role: "primary",
+            label: "Current Contact",
+          });
+
+          // Add all members from all cases
+          for (const c of data.cases) {
+            if (c.primary_contact && !membersMap.has(c.primary_contact.id)) {
+              membersMap.set(c.primary_contact.id, {
+                contact_id: c.primary_contact.id,
+                contact: c.primary_contact,
+                role: "primary",
+              });
+            }
+            if (Array.isArray(c.members)) {
+              for (const m of c.members) {
+                if (m.contact && !membersMap.has(m.contact_id)) {
+                  membersMap.set(m.contact_id, {
+                    contact_id: m.contact_id,
+                    contact: m.contact,
+                    role: m.role,
+                    label: m.label,
+                  });
+                }
+              }
+            }
+          }
+          setCaseMembers(Array.from(membersMap.values()));
+        }
+      } catch (err) {
+        console.error("Failed to load case members for checklist:", err);
+      }
+    }
+    loadCaseMembers();
+    return () => {
+      cancelled = true;
+    };
+  }, [contact]);
 
   // Modals & Active items
   const [verificationDoc, setVerificationDoc] = useState<ContactDocument | null>(null);
@@ -107,15 +190,15 @@ export function DocumentChecklistSidebar({
     };
   }, []);
 
-  // Fetch documents for contact
+  // Fetch documents for target contact
   const fetchDocuments = useCallback(async () => {
-    if (!contact) {
+    if (!targetContact) {
       setDocuments([]);
       return;
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/documents`);
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents`);
       const data = await res.json();
       if (res.ok && data.documents) {
         setDocuments(data.documents);
@@ -125,7 +208,7 @@ export function DocumentChecklistSidebar({
     } finally {
       setLoading(false);
     }
-  }, [contact]);
+  }, [targetContact]);
 
   useEffect(() => {
     fetchDocuments();
@@ -135,7 +218,7 @@ export function DocumentChecklistSidebar({
   useEffect(() => {
     const handleDocumentUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<{ contactId?: string }>;
-      if (!customEvent.detail?.contactId || customEvent.detail.contactId === contact?.id) {
+      if (!customEvent.detail?.contactId || customEvent.detail.contactId === targetContact?.id) {
         fetchDocuments();
       }
     };
@@ -143,7 +226,7 @@ export function DocumentChecklistSidebar({
     return () => {
       window.removeEventListener("wacrm:documents-updated", handleDocumentUpdate);
     };
-  }, [contact?.id, fetchDocuments]);
+  }, [targetContact?.id, fetchDocuments]);
 
   // Progress metrics
   const totalDocs = documents.length;
@@ -183,10 +266,10 @@ export function DocumentChecklistSidebar({
 
   // Actions
   const handleApplyTemplate = async (templateIdToApply: string) => {
-    if (!contact || !templateIdToApply) return;
+    if (!targetContact || !templateIdToApply) return;
     setApplyingTemplate(true);
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/documents`, {
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ template_id: templateIdToApply }),
@@ -204,10 +287,10 @@ export function DocumentChecklistSidebar({
   };
 
   const handleCreateCustom = async () => {
-    if (!contact || !customTitle.trim()) return;
+    if (!targetContact || !customTitle.trim()) return;
     setCreatingCustom(true);
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/documents`, {
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -233,9 +316,9 @@ export function DocumentChecklistSidebar({
   };
 
   const handleDeleteDocument = async (docId: string) => {
-    if (!contact) return;
+    if (!targetContact) return;
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/documents?documentId=${docId}`, {
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents?documentId=${docId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete document");
@@ -260,10 +343,10 @@ export function DocumentChecklistSidebar({
   };
 
   const handleSaveEdit = async () => {
-    if (!contact || !editDoc || !editTitle.trim()) return;
+    if (!targetContact || !editDoc || !editTitle.trim()) return;
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/contacts/${contact.id}/documents`, {
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -287,10 +370,10 @@ export function DocumentChecklistSidebar({
   };
 
   const handleSendReminder = () => {
-    if (!contact || documents.length === 0) return;
+    if (!targetContact || documents.length === 0) return;
 
     const chaserText = generateWhatsAppDocumentChaser({
-      contactName: contact.name || undefined,
+      contactName: targetContact.name || undefined,
       visaCategory: activeVisaCategory,
       documents,
     });
@@ -319,6 +402,47 @@ export function DocumentChecklistSidebar({
 
   return (
     <div className="flex h-full flex-col bg-card">
+      {/* Case Member Switcher Banner */}
+      {caseMembers.length > 1 && (
+        <div className="border-b border-border bg-muted/40 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Users className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-[11px] font-medium text-muted-foreground truncate">
+                {tCases("viewingDocsFor")}:
+              </span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center justify-between h-6 text-[11px] gap-1 max-w-[180px] truncate bg-background border border-border rounded-md px-2 hover:bg-muted cursor-pointer">
+                <span className="truncate">
+                  {targetContact?.name || targetContact?.phone}
+                </span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover border-border">
+                {caseMembers.map((cm) => (
+                  <DropdownMenuItem
+                    key={cm.contact_id}
+                    onClick={() => cm.contact && setSelectedContact(cm.contact)}
+                    className="flex items-center justify-between text-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {getRoleIcon(cm.role)}
+                      <span className="truncate font-medium">
+                        {cm.contact?.name || cm.contact?.phone}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground capitalize ml-2">
+                      {cm.label || tCases(`memberRoles.${cm.role}` as `memberRoles.${CaseMemberRole}`) || cm.role}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      )}
+
       {/* Top Header & Metrics */}
       <div className="border-b border-border p-3 space-y-3 bg-muted/20">
         <div className="flex items-center justify-between">

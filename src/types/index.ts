@@ -739,3 +739,76 @@ export interface UpdateContactDocumentPayload {
   is_mandatory?: boolean;
 }
 
+// ============================================================
+// Cases & Contact Group Linking (migration 040)
+// ============================================================
+
+export type CaseStatus = 'active' | 'in_progress' | 'submitted' | 'approved' | 'completed' | 'closed' | 'on_hold' | 'cancelled';
+
+export type CaseMemberRole =
+  | 'primary'
+  | 'spouse'
+  | 'child'
+  | 'parent'
+  | 'co_applicant'
+  | 'dependent'
+  | 'nominee'
+  | 'guarantor'
+  | 'representative'
+  | 'stakeholder'
+  | 'reference'
+  | 'other';
+
+export interface Case {
+  id: string;
+  account_id: string;
+  case_number: string;
+  title: string;
+  case_type: string;
+  description?: string | null;
+  primary_contact_id: string;
+  status: CaseStatus;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  /** Hydrated by queries that join case_members + contacts */
+  members?: CaseMember[];
+  primary_contact?: Contact;
+}
+
+export interface CaseMember {
+  id: string;
+  case_id: string;
+  contact_id: string;
+  role: CaseMemberRole;
+  label?: string | null;
+  notes?: string | null;
+  created_at: string;
+  /** Hydrated by queries that join contacts */
+  contact?: Contact;
+}
+
+export interface CreateCasePayload {
+  title: string;
+  case_type: string;
+  primary_contact_id: string;
+  description?: string | null;
+  status?: CaseStatus;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateCasePayload {
+  title?: string;
+  case_type?: string;
+  description?: string | null;
+  status?: CaseStatus;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AddCaseMemberPayload {
+  contact_id: string;
+  role: CaseMemberRole;
+  label?: string | null;
+  notes?: string | null;
+}
+
