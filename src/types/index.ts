@@ -187,7 +187,10 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned';
+export type NotificationType =
+  | 'conversation_assigned'
+  | 'document_expiring'
+  | 'document_expired';
 
 export interface Notification {
   id: string;
@@ -847,5 +850,59 @@ export interface DealStageTriggerConfig {
   pipeline_id?: string;
   stage_id?: string;
   from_stage_id?: string;
+}
+
+// ============================================================
+// Automated Compliance & Expiry Engine (migration 042)
+// ============================================================
+
+export type ExpiryAlertTier = '90_days' | '60_days' | '30_days' | '7_days' | 'expired' | 'manual';
+export type ExpiryUrgencyStatus = 'expired' | 'critical' | 'warning' | 'compliant';
+
+export interface DocumentExpiryAlert {
+  id: string;
+  account_id: string;
+  document_id: string;
+  contact_id: string;
+  alert_tier: ExpiryAlertTier;
+  channel: 'whatsapp' | 'in_app' | 'both';
+  status: 'pending' | 'sent' | 'failed';
+  whatsapp_message_id?: string | null;
+  error_message?: string | null;
+  sent_at: string;
+}
+
+export interface AccountComplianceSettings {
+  id: string;
+  account_id: string;
+  auto_whatsapp_enabled: boolean;
+  alert_thresholds: number[];
+  whatsapp_template_name?: string | null;
+  whatsapp_template_language?: string | null;
+  custom_message_template?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonitoredDocumentItem {
+  id: string;
+  account_id: string;
+  contact_id: string;
+  title: string;
+  visa_category: string;
+  expiry_date: string;
+  status: DocumentStatus;
+  days_remaining: number;
+  urgency: ExpiryUrgencyStatus;
+  contact?: Contact;
+  last_alert?: DocumentExpiryAlert | null;
+}
+
+export interface ComplianceOverviewStats {
+  expired_count: number;
+  critical_count: number;  // <= 30 days
+  warning_count: number;   // 31-90 days
+  compliant_count: number; // > 90 days
+  total_monitored: number;
 }
 
