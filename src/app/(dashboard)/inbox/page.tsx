@@ -13,6 +13,7 @@ import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
+import { ResizableSplitter } from "@/components/ui/resizable-splitter";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,10 @@ import { cn } from "@/lib/utils";
 // Remembers the agent's show/hide choice for the desktop contact panel
 // across reloads and sessions (device-scoped, like the theme prefs).
 const CONTACT_PANEL_STORAGE_KEY = "wacrm:inbox:contact-panel-open";
+const LEFT_PANEL_STORAGE_KEY = "wacrm:inbox:left-panel-width";
+const RIGHT_PANEL_STORAGE_KEY = "wacrm:inbox:right-panel-width";
+const DEFAULT_LEFT_WIDTH = 320;
+const DEFAULT_RIGHT_WIDTH = 320;
 
 // `useSearchParams` (the `?c=<id>` deep link below) requires a Suspense
 // boundary or the production build bails to CSR and errors out. Thin
@@ -69,12 +74,49 @@ function InboxPageInner() {
    * below reconciles to the stored value right after mount instead.
    */
   const [contactPanelOpen, setContactPanelOpen] = useState(true);
+  const [leftWidth, setLeftWidth] = useState(DEFAULT_LEFT_WIDTH);
+  const [rightWidth, setRightWidth] = useState(DEFAULT_RIGHT_WIDTH);
+
   useEffect(() => {
     try {
       const stored = localStorage.getItem(CONTACT_PANEL_STORAGE_KEY);
       if (stored !== null) setContactPanelOpen(stored === "true");
+
+      const storedLeft = localStorage.getItem(LEFT_PANEL_STORAGE_KEY);
+      if (storedLeft !== null) {
+        const parsed = parseInt(storedLeft, 10);
+        if (!isNaN(parsed) && parsed >= 240 && parsed <= 500) {
+          setLeftWidth(parsed);
+        }
+      }
+
+      const storedRight = localStorage.getItem(RIGHT_PANEL_STORAGE_KEY);
+      if (storedRight !== null) {
+        const parsed = parseInt(storedRight, 10);
+        if (!isNaN(parsed) && parsed >= 280 && parsed <= 640) {
+          setRightWidth(parsed);
+        }
+      }
     } catch {
       // localStorage can throw in private-browsing / sandboxed contexts.
+    }
+  }, []);
+
+  const handleLeftWidthChange = useCallback((w: number) => {
+    setLeftWidth(w);
+    try {
+      localStorage.setItem(LEFT_PANEL_STORAGE_KEY, String(w));
+    } catch {
+      // Ignore storage failures
+    }
+  }, []);
+
+  const handleRightWidthChange = useCallback((w: number) => {
+    setRightWidth(w);
+    try {
+      localStorage.setItem(RIGHT_PANEL_STORAGE_KEY, String(w));
+    } catch {
+      // Ignore storage failures
     }
   }, []);
 
@@ -574,13 +616,21 @@ function InboxPageInner() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
+      <div
+        className="flex flex-1 overflow-hidden"
+        style={
+          {
+            "--left-panel-width": `${leftWidth}px`,
+            "--right-panel-width": `${rightWidth}px`,
+          } as React.CSSProperties
+        }
+      >
         {/* Left panel: Conversation list.
             Hidden on mobile when a conversation is selected so the
             thread can occupy the full width. Always visible on lg+. */}
         <div
           className={cn(
-            "flex h-full flex-1 lg:flex-none",
+            "flex h-full flex-1 lg:flex-none lg:w-[var(--left-panel-width)]",
             hasActiveConv ? "hidden lg:flex" : "flex",
           )}
         >
@@ -590,6 +640,19 @@ function InboxPageInner() {
             conversations={conversations}
             onConversationsLoaded={handleConversationsLoaded}
             resyncToken={resyncToken}
+          />
+        </div>
+
+        {/* Left Resizable Splitter — desktop only */}
+        <div className="hidden lg:flex h-full items-center">
+          <ResizableSplitter
+            side="left"
+            width={leftWidth}
+            minWidth={240}
+            maxWidth={500}
+            defaultWidth={DEFAULT_LEFT_WIDTH}
+            onWidthChange={handleLeftWidthChange}
+            ariaLabel="Resize conversation list panel"
           />
         </div>
 
@@ -626,12 +689,27 @@ function InboxPageInner() {
           />
         </div>
 
+        {/* Right Resizable Splitter — desktop only, and only when contact panel is open */}
+        {contactPanelOpen && (
+          <div className="hidden lg:flex h-full items-center">
+            <ResizableSplitter
+              side="right"
+              width={rightWidth}
+              minWidth={280}
+              maxWidth={640}
+              defaultWidth={DEFAULT_RIGHT_WIDTH}
+              onWidthChange={handleRightWidthChange}
+              ariaLabel="Resize contact sidebar panel"
+            />
+          </div>
+        )}
+
         {/* Right panel: Contact sidebar — desktop only, and only when the
             agent hasn't collapsed it via the thread-header toggle (#258).
             On mobile it's always hidden (the `lg:block` below), so the
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
-          <div className="hidden lg:block">
+          <div className="hidden lg:block lg:w-[var(--right-panel-width)] h-full">
             <ContactSidebar contact={activeContact} />
           </div>
         )}
