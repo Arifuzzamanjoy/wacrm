@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { validateChecklistTemplate } from "@/lib/checklists/template-validation";
 
 /**
  * Checklist templates available to the caller: every global system
@@ -48,6 +49,55 @@ export async function GET(request: Request) {
       templates: data ?? [],
       accountIndustry: account?.industry ?? null,
     });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
+
+/**
+ * Create an account-owned checklist template.
+ *
+ * The seeded global templates cover only the most common streams; this
+ * is how an agency captures the rest (spousal sponsorship, work
+ * permits, visitor visas — or a vertical we don't ship at all).
+ *
+ * Admin-only, matching the checklist_templates_insert RLS policy. The
+ * account_id is taken from the session, never from the body, so a
+ * caller cannot author a row into another account or into the global
+ * (NULL) catalogue.
+ */
+export async function POST(request: Request) {
+  try {
+    const ctx = await requireRole("admin");
+
+    const body = await request.json().catch(() => null);
+    const result = validateChecklistTemplate(body);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("checklist_templates")
+      .insert({ ...result.value, account_id: ctx.accountId })
+      .select()
+      .single();
+
+    if (error) {
+      // 23505 = unique_violation on idx_checklist_templates_account_name.
+      if (error.code === "23505") {
+        return NextResponse.json(
+          { error: "A template with that name already exists" },
+          { status: 409 }
+        );
+      }
+      console.error("[POST /api/checklist-templates] insert error:", error);
+      return NextResponse.json(
+        { error: "Failed to create checklist template" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, template: data }, { status: 201 });
   } catch (err) {
     return toErrorResponse(err);
   }
