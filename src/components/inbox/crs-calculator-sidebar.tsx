@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useAccountIndustry } from "@/hooks/use-account-industry";
+import { useAuth } from "@/hooks/use-auth";
+import { buildBantBudgetOptions } from "@/lib/leads/bant-tiers";
 import type {
   Contact,
   CRSAgeRange,
@@ -60,6 +62,7 @@ export function CRSCalculatorSidebar({
    */
   const { meta: industryMeta } = useAccountIndustry();
   const showImmigrationModes = industryMeta.immigrationScoring;
+  const { defaultCurrency } = useAuth();
 
   const [mode, setMode] = useState<CalculatorMode>("canada_crs");
 
@@ -115,6 +118,21 @@ export function CRSCalculatorSidebar({
       experienceYears: ausExp,
     });
   }, [ausAge, ausEnglish, ausQual, ausExp]);
+
+  /**
+   * Budget bands rendered in the account's own currency. These used to
+   * be literal "$3k+" strings, so a BDT account still read dollars.
+   */
+  const budgetOptions = useMemo(
+    () =>
+      buildBantBudgetOptions(defaultCurrency, {
+        premium: t("budgetPremium"),
+        standard: t("budgetStandard"),
+        basic: t("budgetBasic"),
+        none: t("budgetNone"),
+      }),
+    [defaultCurrency, t]
+  );
 
   // Computed Lead Score Result
   const bantResult = useMemo(() => {
@@ -744,12 +762,7 @@ export function CRSCalculatorSidebar({
                     1. {t("leadBudget")}
                   </label>
                   <div className="grid grid-cols-2 gap-1">
-                    {[
-                      { id: "enterprise" as const, label: "Premium ($3k+)" },
-                      { id: "growth" as const, label: "Standard ($1.5k-$3k)" },
-                      { id: "starter" as const, label: "Basic (<$1.5k)" },
-                      { id: "none" as const, label: "No Budget" },
-                    ].map((opt) => (
+                    {budgetOptions.map((opt) => (
                       <button
                         key={opt.id}
                         type="button"

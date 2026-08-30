@@ -1982,6 +1982,10 @@
     "tierModerate": "Competitive with Booster",
     "tierAlternative": "Alternative Pathway Needed",
     "leadBudget": "Budget Tier",
+      "budgetPremium": "Premium",
+      "budgetStandard": "Standard",
+      "budgetBasic": "Basic",
+      "budgetNone": "No Budget",
     "leadAuthority": "Decision Authority",
     "leadNeed": "Urgency & Need",
     "leadTimeline": "Target Timeline"
