@@ -2,7 +2,7 @@
 // /api/account
 //
 //   GET   — current caller's account + role. Any member.
-//   PATCH — rename the account.                  Admin+.
+//   PATCH — update the account (name and/or industry). Admin+.
 //
 // Why both verbs share a route file
 //   They speak about the same singular resource (the caller's
@@ -27,8 +27,31 @@ import {
 export async function GET() {
   try {
     const ctx = await getCurrentAccount();
+
+    // `industry` is read separately rather than being folded into
+    // getCurrentAccount's select. That select is on the critical path for
+    // every authenticated request, and this column only exists once
+    // migration 044 has been applied — which this project does by hand.
+    // Selecting it there would turn a not-yet-migrated database into a
+    // hard failure of the whole account context (the #294 failure mode).
+    // Here a missing column just means "industry not set yet".
+    let industry: string | null = null;
+    const { data, error } = await ctx.supabase
+      .from("accounts")
+      .select("industry")
+      .eq("id", ctx.accountId)
+      .maybeSingle();
+    if (error) {
+      console.warn(
+        "[GET /api/account] industry unavailable (migration 044 not applied?):",
+        error.message,
+      );
+    } else {
+      industry = (data?.industry as string | null) ?? null;
+    }
+
     return NextResponse.json({
-      account: ctx.account,
+      account: { ...ctx.account, industry },
       role: ctx.role,
     });
   } catch (err) {
@@ -37,6 +60,7 @@ export async function GET() {
 }
 
 const MAX_NAME_LEN = 80;
+const MAX_INDUSTRY_LEN = 64;
 
 export async function PATCH(request: Request) {
   try {
@@ -44,36 +68,79 @@ export async function PATCH(request: Request) {
 
     // Per-user limit on admin-class mutations. Bounds accidental
     // abuse (script run in a loop) and a compromised admin session
-    // spamming renames. Each admin endpoint keys its own bucket so
+    // spamming updates. Each admin endpoint keys its own bucket so
     // one route doesn't starve another.
     const limit = checkRateLimit(
-      `admin:rename:${ctx.userId}`,
+      `admin:account-update:${ctx.userId}`,
       RATE_LIMITS.adminAction,
     );
     if (!limit.success) return rateLimitResponse(limit);
 
     const body = (await request.json().catch(() => null)) as
-      | { name?: unknown }
+      | { name?: unknown; industry?: unknown }
       | null;
-    const rawName = body?.name;
 
-    if (typeof rawName !== "string") {
-      return NextResponse.json(
-        { error: "'name' must be a string" },
-        { status: 400 },
-      );
+    // Both fields are optional so a caller can change either
+    // independently, but sending neither is a no-op worth rejecting.
+    const patch: { name?: string; industry?: string | null } = {};
+
+    if (body && "name" in body) {
+      const rawName = body.name;
+      if (typeof rawName !== "string") {
+        return NextResponse.json(
+          { error: "'name' must be a string" },
+          { status: 400 },
+        );
+      }
+      const name = rawName.trim();
+      if (name.length === 0) {
+        return NextResponse.json(
+          { error: "Account name cannot be empty" },
+          { status: 400 },
+        );
+      }
+      if (name.length > MAX_NAME_LEN) {
+        return NextResponse.json(
+          { error: `Account name must be ${MAX_NAME_LEN} characters or fewer` },
+          { status: 400 },
+        );
+      }
+      patch.name = name;
     }
 
-    const name = rawName.trim();
-    if (name.length === 0) {
-      return NextResponse.json(
-        { error: "Account name cannot be empty" },
-        { status: 400 },
-      );
+    if (body && "industry" in body) {
+      const rawIndustry = body.industry;
+      // null clears the selection back to "not chosen". Otherwise it is
+      // free text — matching the column, which is deliberately not an
+      // enum so an account can coin a vertical we don't ship (the same
+      // choice `cases.case_type` makes).
+      if (rawIndustry === null) {
+        patch.industry = null;
+      } else if (typeof rawIndustry === "string") {
+        const industry = rawIndustry.trim();
+        if (industry.length === 0) {
+          patch.industry = null;
+        } else if (industry.length > MAX_INDUSTRY_LEN) {
+          return NextResponse.json(
+            {
+              error: `Industry must be ${MAX_INDUSTRY_LEN} characters or fewer`,
+            },
+            { status: 400 },
+          );
+        } else {
+          patch.industry = industry;
+        }
+      } else {
+        return NextResponse.json(
+          { error: "'industry' must be a string or null" },
+          { status: 400 },
+        );
+      }
     }
-    if (name.length > MAX_NAME_LEN) {
+
+    if (Object.keys(patch).length === 0) {
       return NextResponse.json(
-        { error: `Account name must be ${MAX_NAME_LEN} characters or fewer` },
+        { error: "Nothing to update: provide 'name' and/or 'industry'" },
         { status: 400 },
       );
     }
@@ -83,9 +150,9 @@ export async function PATCH(request: Request) {
     // guaranteed the caller is admin+.
     const { data, error } = await ctx.supabase
       .from("accounts")
-      .update({ name })
+      .update(patch)
       .eq("id", ctx.accountId)
-      .select("id, name")
+      .select("id, name, industry")
       .single();
 
     if (error) {

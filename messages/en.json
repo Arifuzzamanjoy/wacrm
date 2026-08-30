@@ -1642,6 +1642,7 @@
       "profile": "Your profile",
       "security": "Login & security",
       "appearance": "Appearance",
+      "business": "Business type",
       "whatsapp": "WhatsApp",
       "templates": "Templates",
       "quick-replies": "Quick replies",
@@ -1757,6 +1758,20 @@
       "newKeyDesc": "Name it after the integration that will use it, and grant only the scopes it needs.",
       "done": "Done",
       "networkError": "Could not reach the server"
+    },
+    "business": {
+      "title": "Business type",
+      "description": "Your industry shapes the labels and tools across the app \u2014 document tabs, checklist templates and scoring.",
+      "industryLabel": "Industry",
+      "industryDesc": "Pick the vertical your agency works in. You can change this at any time.",
+      "previewLabel": "Your inbox sidebar tabs will read:",
+      "detailsTabName": "Details",
+      "loading": "Loading\u2026",
+      "adminOnlyHint": "Only admins can change the business type.",
+      "save": "Save",
+      "saving": "Saving\u2026",
+      "saveSuccess": "Business type updated",
+      "saveFailed": "Could not update business type"
     },
     "deals": {
       "title": "Deals & currency",

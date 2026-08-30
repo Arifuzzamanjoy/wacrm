@@ -28,6 +28,7 @@ import { useTranslations } from "next-intl";
 import { DocumentChecklistSidebar } from "./document-checklist-sidebar";
 import { CRSCalculatorSidebar } from "./crs-calculator-sidebar";
 import { CaseGroupWidget } from "@/components/cases/case-group-widget";
+import { useAccountIndustry } from "@/hooks/use-account-industry";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -58,6 +59,13 @@ export function ContactSidebar({ contact, onPrefillReminder, onCollapse }: Conta
   const tThread = useTranslations("Inbox.messageThread");
 
   const { accountId } = useAuth();
+  /**
+   * Tab labels follow the account's vertical: an immigration
+   * consultancy sees "Visa Docs" / "Eligibility & CRS", a marketing
+   * agency sees "Assets" / "Lead Score". Falls back to the neutral
+   * "Documents" / "Lead Score" until a vertical is chosen in settings.
+   */
+  const { meta: industryMeta } = useAccountIndustry();
   const [activeTab, setActiveTab] = useState<"details" | "documents" | "calculator">("details");
   const [selectedDocsContact, setSelectedDocsContact] = useState<Contact | null>(null);
   const [copied, setCopied] = useState(false);
@@ -212,7 +220,7 @@ export function ContactSidebar({ contact, onPrefillReminder, onCollapse }: Conta
           )}
         >
           <FileCheck className="h-3.5 w-3.5 text-primary" />
-          <span>{tSidebar("visaDocsTab")}</span>
+          <span>{industryMeta.docsLabel}</span>
         </button>
         <button
           type="button"
@@ -225,7 +233,7 @@ export function ContactSidebar({ contact, onPrefillReminder, onCollapse }: Conta
           )}
         >
           <Calculator className="h-3.5 w-3.5 text-amber-500" />
-          <span>{tSidebar("calculatorTab")}</span>
+          <span>{industryMeta.scoreLabel}</span>
         </button>
 
         {onCollapse && (

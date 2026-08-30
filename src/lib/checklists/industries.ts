@@ -30,6 +30,19 @@ export interface IndustryMeta {
   caseNoun: string;
   /** Whether templates in this vertical are region-specific. */
   usesRegion: boolean;
+  /**
+   * Label for the contact sidebar's document tab. Kept short — three
+   * tabs share a narrow strip, so anything past ~14 characters wraps.
+   */
+  docsLabel: string;
+  /** Label for the contact sidebar's scoring tab. Same width budget. */
+  scoreLabel: string;
+  /**
+   * Whether the scoring tab should offer the immigration-only
+   * calculators (Canada CRS, Australia points test). Every vertical
+   * keeps the BANT lead score, which is not industry-specific.
+   */
+  immigrationScoring: boolean;
 }
 
 export const INDUSTRIES: IndustryMeta[] = [
@@ -40,6 +53,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🛂",
     caseNoun: "application",
     usesRegion: true,
+    docsLabel: "Visa Docs",
+    scoreLabel: "Eligibility & CRS",
+    immigrationScoring: true,
   },
   {
     id: "marketing",
@@ -48,6 +64,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "📣",
     caseNoun: "engagement",
     usesRegion: false,
+    docsLabel: "Assets",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "ecommerce",
@@ -56,6 +75,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🛒",
     caseNoun: "account",
     usesRegion: false,
+    docsLabel: "Verification",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "real_estate",
@@ -64,6 +86,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🏠",
     caseNoun: "transaction",
     usesRegion: false,
+    docsLabel: "Documents",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "insurance",
@@ -72,6 +97,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🛡️",
     caseNoun: "policy",
     usesRegion: false,
+    docsLabel: "Policy Docs",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "finance",
@@ -80,6 +108,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "💰",
     caseNoun: "application",
     usesRegion: false,
+    docsLabel: "Documents",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "legal",
@@ -88,6 +119,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "⚖️",
     caseNoun: "matter",
     usesRegion: false,
+    docsLabel: "Case Docs",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "healthcare",
@@ -96,6 +130,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🏥",
     caseNoun: "patient file",
     usesRegion: false,
+    docsLabel: "Patient Docs",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "education",
@@ -104,6 +141,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🎓",
     caseNoun: "admission",
     usesRegion: false,
+    docsLabel: "Admission Docs",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "recruitment",
@@ -112,6 +152,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "🧑‍💼",
     caseNoun: "onboarding",
     usesRegion: false,
+    docsLabel: "Candidate Docs",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
   {
     id: "general",
@@ -120,6 +163,9 @@ export const INDUSTRIES: IndustryMeta[] = [
     emoji: "📋",
     caseNoun: "engagement",
     usesRegion: false,
+    docsLabel: "Documents",
+    scoreLabel: "Lead Score",
+    immigrationScoring: false,
   },
 ];
 
@@ -135,6 +181,9 @@ export const FALLBACK_INDUSTRY: IndustryMeta = {
   emoji: "📋",
   caseNoun: "engagement",
   usesRegion: false,
+  docsLabel: "Documents",
+  scoreLabel: "Lead Score",
+  immigrationScoring: false,
 };
 
 function titleCase(value: string): string {
