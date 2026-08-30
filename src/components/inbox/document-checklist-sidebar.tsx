@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   Contact,
   ContactDocument,
-  VisaChecklistTemplate,
+  ChecklistTemplate,
   CaseMemberRole,
 } from "@/types";
 import {
@@ -24,6 +24,7 @@ import {
   Loader2,
   Calendar,
   Users,
+  MinusCircle,
 } from "lucide-react";
 import { getRoleIcon } from "@/components/cases/case-member-card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { differenceInDays, parseISO, isPast } from "date-fns";
-import { generateWhatsAppDocumentChaser } from "@/lib/immigration/checklist-formatter";
+import { generateWhatsAppDocumentChaser } from "@/lib/checklists/checklist-formatter";
+import { getIndustryMeta, sortIndustriesForAccount } from "@/lib/checklists/industries";
 import { DocumentVerificationDialog } from "./document-verification-dialog";
 import { useTranslations } from "next-intl";
 
@@ -67,7 +69,8 @@ export function DocumentChecklistSidebar({
   const targetContact = selectedContact || contact;
 
   const [documents, setDocuments] = useState<ContactDocument[]>([]);
-  const [templates, setTemplates] = useState<VisaChecklistTemplate[]>([]);
+  const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
+  const [accountIndustry, setAccountIndustry] = useState<string | null>(null);
   const [caseMembers, setCaseMembers] = useState<
     { contact_id: string; contact?: Contact | null; role: string; label?: string | null }[]
   >([]);
@@ -172,16 +175,17 @@ export function DocumentChecklistSidebar({
     let cancelled = false;
     async function loadTemplates() {
       try {
-        const res = await fetch("/api/visa-templates");
+        const res = await fetch("/api/checklist-templates");
         const data = await res.json();
         if (!cancelled && res.ok && data.templates) {
           setTemplates(data.templates);
+          setAccountIndustry(data.accountIndustry ?? null);
           if (data.templates.length > 0) {
             setSelectedTemplateId((prev) => prev || data.templates[0].id);
           }
         }
       } catch (err) {
-        console.error("Failed to load visa templates", err);
+        console.error("Failed to load checklist templates", err);
       }
     }
     loadTemplates();
@@ -230,6 +234,15 @@ export function DocumentChecklistSidebar({
 
   // Progress metrics
   const totalDocs = documents.length;
+  /**
+   * Waived requirements don't apply to this client, so counting them in
+   * the denominator would cap the bar below 100% no matter what the
+   * client sends. They stay visible in the list, just not in the maths.
+   */
+  const applicableDocs = useMemo(
+    () => documents.filter((d) => d.status !== "waived"),
+    [documents]
+  );
   const verifiedDocs = useMemo(
     () => documents.filter((d) => d.status === "verified"),
     [documents]
@@ -247,8 +260,47 @@ export function DocumentChecklistSidebar({
     [documents]
   );
 
-  const progressPercent = totalDocs > 0 ? Math.round((verifiedDocs.length / totalDocs) * 100) : 0;
-  const activeVisaCategory = documents[0]?.visa_category || "Visa Application";
+  const progressPercent =
+    applicableDocs.length > 0
+      ? Math.round((verifiedDocs.length / applicableDocs.length) * 100)
+      : 0;
+
+  /**
+   * The checklist these documents belong to. Falls back to the label of
+   * whichever template is selected, then to a vertical-neutral default —
+   * this used to hardcode "Visa Application".
+   */
+  const activeCategory =
+    documents[0]?.category ||
+    templates.find((tpl) => tpl.id === selectedTemplateId)?.category ||
+    "Client Onboarding";
+
+  /** Vertical of the selected template, used for reminder wording. */
+  const activeIndustry =
+    templates.find((tpl) => tpl.id === selectedTemplateId)?.industry ??
+    accountIndustry;
+
+  /**
+   * Templates grouped by vertical for the picker, with the agency's own
+   * industry floated to the top so an immigration consultancy still sees
+   * visa templates first while a marketing agency sees its own.
+   */
+  const templatesByIndustry = useMemo(() => {
+    const groups = new Map<string, ChecklistTemplate[]>();
+    for (const tpl of templates) {
+      const key = (tpl.industry as string) || "general";
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(tpl);
+      else groups.set(key, [tpl]);
+    }
+    return sortIndustriesForAccount([...groups.keys()], accountIndustry).map(
+      (industry) => ({
+        industry,
+        meta: getIndustryMeta(industry),
+        templates: groups.get(industry) ?? [],
+      })
+    );
+  }, [templates, accountIndustry]);
 
   // Filtered documents
   const filteredDocuments = useMemo(() => {
@@ -295,7 +347,7 @@ export function DocumentChecklistSidebar({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: customTitle.trim(),
-          visa_category: customCategory.trim() || activeVisaCategory,
+          category: customCategory.trim() || activeCategory,
           description: customDesc.trim() || undefined,
           is_mandatory: customMandatory,
         }),
@@ -326,6 +378,39 @@ export function DocumentChecklistSidebar({
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     } catch {
       toast.error("Could not delete item");
+    }
+  };
+
+  /**
+   * Toggle a requirement between `waived` ("not applicable to this
+   * client") and `missing`. Waived items are excluded from the progress
+   * denominator and from the WhatsApp chaser, so an agency can retire a
+   * requirement that doesn't apply without it nagging forever.
+   */
+  const handleToggleWaived = async (doc: ContactDocument) => {
+    if (!targetContact) return;
+    const nextStatus = doc.status === "waived" ? "missing" : "waived";
+    try {
+      const res = await fetch(`/api/contacts/${targetContact.id}/documents`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: doc.id, status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update document");
+
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === doc.id ? { ...d, ...data.document } : d))
+      );
+      if (nextStatus === "waived") {
+        toast.success(t("waivedSuccess", { title: doc.title }));
+      } else {
+        toast.success(t("docUpdated"));
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Could not update requirement"
+      );
     }
   };
 
@@ -374,7 +459,8 @@ export function DocumentChecklistSidebar({
 
     const chaserText = generateWhatsAppDocumentChaser({
       contactName: targetContact.name || undefined,
-      visaCategory: activeVisaCategory,
+      category: activeCategory,
+      industry: activeIndustry,
       documents,
     });
 
@@ -449,7 +535,7 @@ export function DocumentChecklistSidebar({
           <div className="flex items-center gap-1.5 min-w-0">
             <Layers className="h-4 w-4 text-primary shrink-0" />
             <span className="text-xs font-semibold text-foreground truncate">
-              {totalDocs > 0 ? activeVisaCategory : t("visaChecklist")}
+              {totalDocs > 0 ? activeCategory : t("visaChecklist")}
             </span>
           </div>
 
@@ -459,7 +545,7 @@ export function DocumentChecklistSidebar({
               size="sm"
               className="h-6 px-2 text-[11px] gap-1"
               onClick={() => {
-                setCustomCategory(activeVisaCategory);
+                setCustomCategory(activeCategory);
                 setCustomDocOpen(true);
               }}
             >
@@ -557,6 +643,9 @@ export function DocumentChecklistSidebar({
               </div>
 
               <div className="space-y-2">
+                {/* Grouped by vertical so an agency sees its own industry's
+                    checklists first, with every other vertical still
+                    reachable in the same picker. */}
                 <select
                   value={selectedTemplateId}
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
@@ -565,10 +654,18 @@ export function DocumentChecklistSidebar({
                   <option value="" disabled>
                     {t("selectPresetStream")}
                   </option>
-                  {templates.map((tmpl) => (
-                    <option key={tmpl.id} value={tmpl.id}>
-                      [{tmpl.country_code}] {tmpl.name}
-                    </option>
+                  {templatesByIndustry.map(({ industry, meta, templates: group }) => (
+                    <optgroup
+                      key={industry}
+                      label={`${meta.emoji} ${meta.label}`}
+                    >
+                      {group.map((tmpl) => (
+                        <option key={tmpl.id} value={tmpl.id}>
+                          {tmpl.region_code ? `[${tmpl.region_code}] ` : ""}
+                          {tmpl.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
 
@@ -643,6 +740,10 @@ export function DocumentChecklistSidebar({
                           <Pencil className="h-3.5 w-3.5 mr-1.5" />
                           {t("editLabel")}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleWaived(doc)}>
+                          <MinusCircle className="h-3.5 w-3.5 mr-1.5" />
+                          {doc.status === "waived" ? t("unwaive") : t("markWaived")}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDeleteDocument(doc.id)}
                           className="text-rose-600 focus:text-rose-600"
@@ -679,6 +780,15 @@ export function DocumentChecklistSidebar({
                         <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                           <HelpCircle className="h-3 w-3" />
                           {t("missing")}
+                        </span>
+                      )}
+                      {doc.status === "waived" && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-400"
+                          title={t("waivedHint")}
+                        >
+                          <MinusCircle className="h-3 w-3" />
+                          {t("waived")}
                         </span>
                       )}
 
@@ -782,7 +892,7 @@ export function DocumentChecklistSidebar({
 
             <div>
               <label className="text-xs font-medium text-foreground block mb-1">
-                {t("visaCategoryLabel")}
+                {t("categoryLabel")}
               </label>
               <Input
                 placeholder={t("categoryPlaceholder")}

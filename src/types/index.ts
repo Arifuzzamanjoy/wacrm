@@ -675,10 +675,43 @@ export interface QuickReply {
 }
 
 // ============================================================
-// Visa Document Checklists & Verification Hub (migration 039)
+// Document Checklists & Verification Hub
+// (migration 039, generalized across industries in 044)
 // ============================================================
 
-export type DocumentStatus = 'missing' | 'submitted' | 'verified' | 'rejected';
+/**
+ * `waived` is the industry-standard "not applicable" state that
+ * document-collection tools expose so a requirement that genuinely
+ * doesn't apply to a client can be retired without counting as
+ * missing forever. Added in migration 044.
+ */
+export type DocumentStatus =
+  | 'missing'
+  | 'submitted'
+  | 'verified'
+  | 'rejected'
+  | 'waived';
+
+/**
+ * The vertical a checklist template serves. Stored as free text (like
+ * `cases.case_type`) so an agency can coin its own vertical without a
+ * migration — this union covers the ones we seed and group by in the
+ * UI, and `(string & {})` keeps arbitrary values assignable while
+ * preserving autocomplete.
+ */
+export type ChecklistIndustry =
+  | 'immigration'
+  | 'real_estate'
+  | 'insurance'
+  | 'finance'
+  | 'legal'
+  | 'healthcare'
+  | 'education'
+  | 'recruitment'
+  | 'marketing'
+  | 'ecommerce'
+  | 'general'
+  | (string & {});
 
 export interface ChecklistTemplateItem {
   title: string;
@@ -688,13 +721,17 @@ export interface ChecklistTemplateItem {
   expiry_required?: boolean;
 }
 
-export interface VisaChecklistTemplate {
+export interface ChecklistTemplate {
   id: string;
   account_id?: string | null;
-  country_code: string;
-  visa_category: string;
+  industry: ChecklistIndustry;
+  /** Immigration-only ("CA", "UK", "AU"). Null for every other vertical. */
+  region_code?: string | null;
+  /** e.g. "Study Permit", "Client Onboarding", "Seller Onboarding". */
+  category?: string | null;
   name: string;
   default_items: ChecklistTemplateItem[];
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -703,7 +740,8 @@ export interface ContactDocument {
   id: string;
   account_id: string;
   contact_id: string;
-  visa_category: string;
+  /** The checklist this requirement belongs to (was `visa_category`). */
+  category: string;
   title: string;
   description?: string | null;
   is_mandatory: boolean;
@@ -714,19 +752,20 @@ export interface ContactDocument {
   expiry_date?: string | null;
   verified_at?: string | null;
   verified_by?: string | null;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
 
 export interface ApplyTemplatePayload {
   template_id: string;
-  visa_category?: string;
+  category?: string;
 }
 
 export interface CreateContactDocumentPayload {
   title: string;
   description?: string;
-  visa_category: string;
+  category: string;
   is_mandatory?: boolean;
   status?: DocumentStatus;
   file_url?: string;
@@ -889,7 +928,7 @@ export interface MonitoredDocumentItem {
   account_id: string;
   contact_id: string;
   title: string;
-  visa_category: string;
+  category: string;
   expiry_date: string;
   status: DocumentStatus;
   days_remaining: number;

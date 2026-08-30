@@ -287,7 +287,7 @@ export default function CompliancePage() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const doc of documents) {
-      if (doc.visa_category) set.add(doc.visa_category);
+      if (doc.category) set.add(doc.category);
     }
     return Array.from(set);
   }, [documents]);
@@ -300,7 +300,7 @@ export default function CompliancePage() {
         return false;
       }
       // Category filter
-      if (categoryFilter !== "all" && doc.visa_category !== categoryFilter) {
+      if (categoryFilter !== "all" && doc.category !== categoryFilter) {
         return false;
       }
       // Search query filter
@@ -309,7 +309,7 @@ export default function CompliancePage() {
         const contactName = doc.contact?.name?.toLowerCase() || "";
         const contactPhone = doc.contact?.phone?.toLowerCase() || "";
         const title = doc.title?.toLowerCase() || "";
-        const category = doc.visa_category?.toLowerCase() || "";
+        const category = doc.category?.toLowerCase() || "";
 
         return (
           contactName.includes(q) ||
@@ -668,7 +668,7 @@ export default function CompliancePage() {
                               variant="outline"
                               className="text-[10px] py-0 px-1.5 font-normal text-muted-foreground"
                             >
-                              {doc.visa_category}
+                              {doc.category}
                             </Badge>
                           </div>
                         </div>
