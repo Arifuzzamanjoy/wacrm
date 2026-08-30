@@ -1982,6 +1982,10 @@
     "tierModerate": "부스터 필요 (주정부/영어 향상 권장)",
     "tierAlternative": "대안 경로 필요 (유학 후 이민 등)",
     "leadBudget": "예산 등급",
+      "budgetPremium": "프리미엄",
+      "budgetStandard": "표준",
+      "budgetBasic": "기본",
+      "budgetNone": "예산 없음",
     "leadAuthority": "의사 결정권",
     "leadNeed": "필요성 및 긴급도",
     "leadTimeline": "목표 일정"
