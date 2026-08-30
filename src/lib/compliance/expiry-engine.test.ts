@@ -7,23 +7,55 @@ import {
   DEFAULT_ALERT_THRESHOLDS,
 } from './expiry-engine';
 
+/**
+ * `YYYY-MM-DD` for a date, in the *local* zone.
+ *
+ * These tests used `toISOString().split('T')[0]`, which is UTC. In any
+ * zone ahead of UTC that returns yesterday's date for several hours
+ * after local midnight (UTC+6 → every night from 00:00 to 06:00), so
+ * "today" was fed a past date and the suite went red on a wall clock
+ * rather than on a code change.
+ *
+ * `calculateDaysRemaining` is local-time by design — it compares local
+ * midnight against a DATE column that names a calendar day, with no
+ * instant attached — so the tests have to speak local dates too.
+ */
+function localDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 describe('Compliance & Expiry Engine Helpers', () => {
   describe('calculateDaysRemaining', () => {
     it('returns 0 for today', () => {
-      const today = new Date().toISOString().split('T')[0];
-      expect(calculateDaysRemaining(today)).toBe(0);
+      expect(calculateDaysRemaining(localDateStr(new Date()))).toBe(0);
     });
 
     it('returns negative number for past date', () => {
-      const past = new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0];
-      const days = calculateDaysRemaining(past);
-      expect(days).toBeLessThanOrEqual(-4);
+      const past = localDateStr(new Date(Date.now() - 5 * 86400000));
+      expect(calculateDaysRemaining(past)).toBe(-5);
     });
 
     it('returns positive number for future date', () => {
-      const future = new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0];
-      const days = calculateDaysRemaining(future);
-      expect(days).toBeGreaterThanOrEqual(14);
+      const future = localDateStr(new Date(Date.now() + 15 * 86400000));
+      expect(calculateDaysRemaining(future)).toBe(15);
+    });
+
+    it('is stable across the UTC date boundary', () => {
+      // Pin the clock to a local time whose UTC date differs from the
+      // local one wherever the runner sits east of UTC. "Today" must
+      // still be 0 — this is the case that was failing.
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(new Date(2026, 7, 31, 0, 30, 0)); // local 00:30
+        expect(calculateDaysRemaining(localDateStr(new Date()))).toBe(0);
+        vi.setSystemTime(new Date(2026, 7, 31, 23, 30, 0)); // local 23:30
+        expect(calculateDaysRemaining(localDateStr(new Date()))).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
