@@ -8,13 +8,13 @@ import {
   CONVERSATION_SELECT,
   normalizeConversation,
 } from "@/lib/inbox/conversations";
+import { shouldApplyDeepLink } from "@/lib/inbox/deep-link";
 import type { Conversation, Message, Contact, ConversationStatus } from "@/types";
 import { useRealtime } from "@/hooks/use-realtime";
 import { ConversationList } from "@/components/inbox/conversation-list";
 import { MessageThread } from "@/components/inbox/message-thread";
 import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { ResizableSplitter } from "@/components/ui/resizable-splitter";
-import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -442,15 +442,44 @@ function InboxPageInner() {
     setResyncToken((n) => n + 1);
   }, []);
 
+  /**
+   * The `?c=` value as of the last time this effect ran. Comparing
+   * against it is what tells a *real* external navigation (the case
+   * member "Open Chat" button pushing a new URL) apart from a stale
+   * read of the param — and that distinction is load-bearing.
+   *
+   * `router.replace()` in handleSelectConversation is asynchronous, so
+   * for one render after a click `activeConversation` is already the
+   * newly-clicked conv while `deepLinkConvId` still holds the previous
+   * one. Because `activeConversation?.id` is a dependency here, that
+   * render re-runs this effect. Without the changed-check below, every
+   * guard passes against the stale param and the effect selects the
+   * *previous* conversation back — clicking any row in the list bounced
+   * you straight back to the thread you came from (#271).
+   */
+  const lastDeepLinkRef = useRef<string | null>(deepLinkConvId);
+
   // Handle deep-link URL changes (e.g. clicking "Open Chat" on a case
-  // member) while conversations are already loaded.  The callback-based
+  // member) while conversations are already loaded. The callback-based
   // resolver inside handleConversationsLoaded only fires on list fetch;
   // this effect catches in-page URL-param changes that don't trigger a
   // refetch.
   useEffect(() => {
-    if (!deepLinkConvId || conversations.length === 0) return;
-    if (autoSelectedForDeepLinkRef.current === deepLinkConvId) return;
-    if (activeConversation?.id === deepLinkConvId) return;
+    const apply = shouldApplyDeepLink({
+      deepLinkConvId,
+      lastDeepLinkConvId: lastDeepLinkRef.current,
+      autoSelectedConvId: autoSelectedForDeepLinkRef.current,
+      activeConvId: activeConversation?.id ?? null,
+      hasConversations: conversations.length > 0,
+    });
+    // Record the param we just evaluated regardless of the outcome, so
+    // the next run can tell a real URL change from a stale read. If the
+    // conversation list hadn't loaded yet, consuming the value here is
+    // still safe: handleConversationsLoaded resolves a pending deep
+    // link when the list arrives, and it gates on
+    // autoSelectedForDeepLinkRef (untouched above), not on this ref.
+    lastDeepLinkRef.current = deepLinkConvId;
+    if (!apply || !deepLinkConvId) return;
 
     autoSelectedForDeepLinkRef.current = deepLinkConvId;
     const match = conversations.find((c) => c.id === deepLinkConvId);
@@ -465,9 +494,11 @@ function InboxPageInner() {
           ),
         );
       }
-      router.replace(`/inbox?c=${match.id}`, { scroll: false });
+      // No router.replace here: the URL already carries this id — that
+      // is what woke this effect — so rewriting it would be redundant
+      // churn and could re-enter the race above.
     }
-  }, [deepLinkConvId, conversations, activeConversation?.id, router]);
+  }, [deepLinkConvId, conversations, activeConversation?.id]);
 
   const handleConversationsLoaded = useCallback(
     (loaded: Conversation[]) => {
