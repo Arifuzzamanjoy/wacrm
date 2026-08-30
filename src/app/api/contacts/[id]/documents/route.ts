@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import type { ChecklistTemplateItem, DocumentStatus } from "@/types";
 
+const DOCUMENT_STATUSES: DocumentStatus[] = [
+  "missing",
+  "submitted",
+  "verified",
+  "rejected",
+  "waived",
+];
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -42,7 +50,7 @@ export async function POST(
       const templateId = body.template_id.trim();
 
       const { data: template, error: tmplError } = await ctx.supabase
-        .from("visa_checklist_templates")
+        .from("checklist_templates")
         .select("*")
         .eq("id", templateId)
         .or(`account_id.is.null,account_id.eq.${ctx.accountId}`)
@@ -53,10 +61,10 @@ export async function POST(
       }
 
       const defaultItems = (template.default_items as ChecklistTemplateItem[]) ?? [];
-      const visaCategory =
-        typeof body.visa_category === "string" && body.visa_category.trim()
-          ? body.visa_category.trim()
-          : template.name;
+      const category =
+        typeof body.category === "string" && body.category.trim()
+          ? body.category.trim()
+          : template.category || template.name;
 
       if (defaultItems.length === 0) {
         return NextResponse.json({ ok: true, documents: [] });
@@ -65,7 +73,7 @@ export async function POST(
       const rowsToInsert = defaultItems.map((item) => ({
         account_id: ctx.accountId,
         contact_id: contactId,
-        visa_category: visaCategory,
+        category,
         title: item.title,
         description: item.description ?? null,
         is_mandatory: item.is_mandatory ?? true,
@@ -87,11 +95,11 @@ export async function POST(
 
     // Case 2: Create single custom document
     const title = typeof body.title === "string" ? body.title.trim() : "";
-    const visaCategory = typeof body.visa_category === "string" ? body.visa_category.trim() : "";
+    const category = typeof body.category === "string" ? body.category.trim() : "";
 
-    if (!title || !visaCategory) {
+    if (!title || !category) {
       return NextResponse.json(
-        { error: "Missing required fields: title and visa_category" },
+        { error: "Missing required fields: title and category" },
         { status: 400 }
       );
     }
@@ -101,7 +109,7 @@ export async function POST(
       .insert({
         account_id: ctx.accountId,
         contact_id: contactId,
-        visa_category: visaCategory,
+        category,
         title,
         description: typeof body.description === "string" ? body.description.trim() || null : null,
         is_mandatory: typeof body.is_mandatory === "boolean" ? body.is_mandatory : true,
@@ -167,6 +175,12 @@ export async function PATCH(
     }
 
     if ("status" in body && typeof body.status === "string") {
+      if (!DOCUMENT_STATUSES.includes(body.status as DocumentStatus)) {
+        return NextResponse.json(
+          { error: `Invalid status. Expected one of: ${DOCUMENT_STATUSES.join(", ")}` },
+          { status: 400 }
+        );
+      }
       const nextStatus = body.status as DocumentStatus;
       updatePayload.status = nextStatus;
 
@@ -177,6 +191,11 @@ export async function PATCH(
       } else {
         updatePayload.verified_at = null;
         updatePayload.verified_by = null;
+        // A waived requirement no longer applies to this client, so any
+        // rejection note from a previous submission is stale.
+        if (nextStatus === "waived") {
+          updatePayload.rejection_reason = null;
+        }
       }
     }
 

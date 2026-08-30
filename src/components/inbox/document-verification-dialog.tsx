@@ -216,7 +216,7 @@ export function DocumentVerificationDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {document.visa_category} • {contact.name || contact.phone}
+              {document.category} • {contact.name || contact.phone}
             </p>
           </div>
 

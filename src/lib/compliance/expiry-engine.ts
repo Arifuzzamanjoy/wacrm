@@ -190,7 +190,7 @@ export async function fetchMonitoredDocuments(accountId: string): Promise<{
       account_id: d.account_id as string,
       contact_id: d.contact_id as string,
       title: d.title as string,
-      visa_category: d.visa_category as string,
+      category: d.category as string,
       expiry_date: d.expiry_date as string,
       status: d.status,
       days_remaining: days,
