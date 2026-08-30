@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  ClipboardList,
   Coins,
   FileText,
   KeyRound,
@@ -28,6 +29,7 @@ export const SETTINGS_SECTIONS = [
   'security',
   'appearance',
   'business',
+  'checklist-templates',
   'whatsapp',
   'templates',
   'quick-replies',
@@ -55,6 +57,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   security: { id: 'security', label: 'Login & security', icon: Shield, group: 'account' },
   appearance: { id: 'appearance', label: 'Appearance', icon: Palette, group: 'account' },
   business: { id: 'business', label: 'Business type', icon: Briefcase, group: 'workspace' },
+  'checklist-templates': { id: 'checklist-templates', label: 'Checklist templates', icon: ClipboardList, group: 'workspace' },
   whatsapp: { id: 'whatsapp', label: 'WhatsApp', icon: PlugZap, group: 'workspace' },
   templates: { id: 'templates', label: 'Templates', icon: FileText, group: 'workspace' },
   'quick-replies': { id: 'quick-replies', label: 'Quick replies', icon: Zap, group: 'workspace' },
