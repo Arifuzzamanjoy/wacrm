@@ -183,7 +183,7 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
   const initials = displayName.charAt(0).toUpperCase();
 
   return (
-    <div className="flex h-full w-full flex-col border-l border-border bg-card">
+    <div className="flex h-full w-full flex-col overflow-hidden border-l border-border bg-card">
       {/* Top Tab Bar */}
       <div className="flex items-center border-b border-border bg-muted/30 p-1 shrink-0">
         <button
@@ -229,7 +229,7 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
 
       {/* Tab 1: Details / Overview */}
       {activeTab === "details" ? (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-3 space-y-3">
             {/* 1. Contact Profile Info */}
             <CollapsibleSection

@@ -401,7 +401,7 @@ export function DocumentChecklistSidebar({
   }
 
   return (
-    <div className="flex h-full flex-col bg-card">
+    <div className="flex h-full flex-col overflow-hidden bg-card">
       {/* Case Member Switcher Banner */}
       {caseMembers.length > 1 && (
         <div className="border-b border-border bg-muted/40 px-3 py-2">
@@ -535,7 +535,7 @@ export function DocumentChecklistSidebar({
       </div>
 
       {/* Main Checklist Body */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-2.5">
           {loading ? (
             <div className="flex justify-center py-10">
