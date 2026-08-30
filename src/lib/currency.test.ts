@@ -47,6 +47,37 @@ describe("formatCurrency", () => {
   });
 });
 
+describe("CURRENCIES catalogue", () => {
+  it("has no duplicate codes", () => {
+    const codes = CURRENCIES.map((c) => c.code);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  /**
+   * `formatCurrency` is deliberately lenient and `Intl.NumberFormat`
+   * accepts any three-letter string, so a typo'd code (BTD for BDT)
+   * would sail through every other check here and silently ship a
+   * currency that does not exist. `Intl.DisplayNames` does know the
+   * real ISO-4217 register: it returns a human name for a real code and
+   * echoes the input back for one it doesn't recognise.
+   */
+  it("only offers codes in the real ISO-4217 register", () => {
+    const displayNames = new Intl.DisplayNames(["en"], { type: "currency" });
+    for (const c of CURRENCIES) {
+      expect(
+        displayNames.of(c.code),
+        `${c.code} is not a recognised ISO-4217 currency code`
+      ).not.toBe(c.code);
+    }
+  });
+
+  it("catches a typo'd code (guards the check above)", () => {
+    const displayNames = new Intl.DisplayNames(["en"], { type: "currency" });
+    expect(displayNames.of("BTD")).toBe("BTD"); // not a real currency
+    expect(displayNames.of("BDT")).not.toBe("BDT"); // Bangladeshi Taka
+  });
+});
+
 describe("formatCurrencyShort", () => {
   it("abbreviates millions and thousands with the currency symbol", () => {
     expect(formatCurrencyShort(2_500_000, "USD")).toBe("$2.5M");
@@ -57,6 +88,7 @@ describe("formatCurrencyShort", () => {
   it("uses the matching symbol for non-USD currencies", () => {
     expect(formatCurrencyShort(1_000, "EUR")).toBe("€1.0k");
     expect(formatCurrencyShort(1_000, "INR")).toBe("₹1.0k");
+    expect(formatCurrencyShort(1_000, "BDT")).toBe("৳1.0k");
   });
 
   it("falls back to the code prefix for unknown currencies (no throw)", () => {
