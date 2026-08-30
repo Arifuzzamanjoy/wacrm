@@ -14,11 +14,15 @@ describe("Flow Templates Registry", () => {
     "feedback_survey",
     "product_recommender",
     "onboarding_checklist",
+    "canada_crs_calculator",
+    "australia_points_test",
+    "uk_visa_eligibility",
+    "universal_lead_scoring",
   ] as const;
 
-  it("lists all 9 pre-built flow templates", () => {
+  it("lists all 13 pre-built flow templates", () => {
     const templates = listFlowTemplates();
-    expect(templates).toHaveLength(9);
+    expect(templates).toHaveLength(13);
     const slugs = templates.map((t) => t.slug);
     for (const slug of EXPECTED_SLUGS) {
       expect(slugs).toContain(slug);

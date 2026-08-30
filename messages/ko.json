@@ -291,7 +291,8 @@
       "noDeals": "딜 없음",
       "addNotePlaceholder": "메모 추가...",
       "detailsTab": "상세 정보",
-      "visaDocsTab": "비자 서류"
+      "visaDocsTab": "비자 서류",
+      "calculatorTab": "자격 및 CRS 점수"
     },
     "checklist": {
       "visaChecklist": "비자 서류 체크리스트",
@@ -1140,7 +1141,11 @@
       "triggerKeywordNone": "키워드로 트리거 (설정 안 됨)",
       "triggerKeyword": "트리거 조건: {keywords}",
       "triggerFirstInbound": "연락처의 첫 수신 메시지에서 트리거됨",
-      "triggerManual": "수동 트리거"
+      "triggerManual": "수동 트리거",
+      "tabAll": "전체 템플릿",
+      "tabImmigration": "이민 및 점수 계산기",
+      "tabSales": "리드 유치 및 영업",
+      "tabSupport": "고객 지원"
     },
     "edit": {
       "notFound": "플로우를 찾을 수 없습니다.",
@@ -1928,5 +1933,36 @@
     "autoAlertsToggle": "매일 자동 WhatsApp 만료 알림 활성화",
     "thresholds": "알림 임계값",
     "saveSettings": "설정 저장"
+  },
+  "Calculator": {
+    "title": "캐나다 익스프레스 엔트리 CRS 계산기",
+    "subtitle": "이민 점수를 실시간으로 계산하고 WhatsApp으로 성적표를 전송합니다.",
+    "countryCanada": "캐나다 익스프레스 엔트리 (CRS)",
+    "countryAustralia": "호주 189/190 기술이민 점수",
+    "countryLeadScore": "BANT 리드 자격 점수",
+    "ageLabel": "신청자 연령",
+    "educationLabel": "최종 학력",
+    "languageLabel": "영어 능력 (IELTS / CLB)",
+    "experienceLabel": "전문 직무 경력",
+    "bonusesLabel": "추가 가산점 요건",
+    "canadianExpLabel": "캐나다 1년 이상 전문 경력 (+40점)",
+    "jobOfferPnpLabel": "취업 제안 또는 주정부 노미네이션 (+50점)",
+    "totalScore": "예상 총 CRS 점수",
+    "breakdown": "항목별 점수",
+    "sendToChat": "WhatsApp으로 성적표 전송",
+    "toastSent": "성적표가 메시지 입력창에 입력되었습니다",
+    "ageBracket": "연령대",
+    "englishLevel": "영어 시험 등급",
+    "qualification": "학력 및 학위",
+    "passMark": "합격 기준선",
+    "eligibleStatus": "65점 합격 기준 충족",
+    "ineligibleStatus": "65점 기준 미달",
+    "tierHigh": "유력 후보 (우선 지원 권장)",
+    "tierModerate": "부스터 필요 (주정부/영어 향상 권장)",
+    "tierAlternative": "대안 경로 필요 (유학 후 이민 등)",
+    "leadBudget": "예산 등급",
+    "leadAuthority": "의사 결정권",
+    "leadNeed": "필요성 및 긴급도",
+    "leadTimeline": "목표 일정"
   }
 }
