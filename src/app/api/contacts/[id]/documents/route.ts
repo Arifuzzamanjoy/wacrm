@@ -70,6 +70,10 @@ export async function POST(
         return NextResponse.json({ ok: true, documents: [] });
       }
 
+      // Stamp provenance (migration 046) so the UI can later notice
+      // that this template gained requirements after the fact. These
+      // rows stay copies — nothing reads template_id to mutate them.
+      const appliedAt = new Date().toISOString();
       const rowsToInsert = defaultItems.map((item) => ({
         account_id: ctx.accountId,
         contact_id: contactId,
@@ -78,6 +82,8 @@ export async function POST(
         description: item.description ?? null,
         is_mandatory: item.is_mandatory ?? true,
         status: "missing" as DocumentStatus,
+        template_id: template.id,
+        applied_at: appliedAt,
       }));
 
       const { data: inserted, error: insertError } = await ctx.supabase

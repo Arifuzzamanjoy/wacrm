@@ -25,6 +25,7 @@ import {
   Calendar,
   Users,
   MinusCircle,
+  Info,
 } from "lucide-react";
 import { getRoleIcon } from "@/components/cases/case-member-card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ import { toast } from "sonner";
 import { differenceInDays, parseISO, isPast } from "date-fns";
 import { generateWhatsAppDocumentChaser } from "@/lib/checklists/checklist-formatter";
 import { getIndustryMeta, sortIndustriesForAccount } from "@/lib/checklists/industries";
+import { detectChecklistDrift } from "@/lib/checklists/drift";
 import { DocumentVerificationDialog } from "./document-verification-dialog";
 import { useTranslations } from "next-intl";
 
@@ -285,6 +287,17 @@ export function DocumentChecklistSidebar({
    * industry floated to the top so an immigration consultancy still sees
    * visa templates first while a marketing agency sees its own.
    */
+  /**
+   * Whether the template this checklist was stamped from has since
+   * gained requirements. Read-only notice — the agent decides per
+   * contact whether to add them, because these rows carry verification
+   * state that must not be rewritten behind their back.
+   */
+  const drift = useMemo(
+    () => detectChecklistDrift(documents, templates),
+    [documents, templates]
+  );
+
   const templatesByIndustry = useMemo(() => {
     const groups = new Map<string, ChecklistTemplate[]>();
     for (const tpl of templates) {
@@ -554,6 +567,31 @@ export function DocumentChecklistSidebar({
             </Button>
           </div>
         </div>
+
+        {/* Template-drift notice. Informational only: it names what the
+            template gained and leaves the decision to the agent, who
+            adds any that apply via "Add Doc" above. Nothing here
+            rewrites the client's existing requirements. */}
+        {drift.hasDrifted && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+            <div className="flex items-start gap-1.5">
+              <Info className="mt-0.5 h-3 w-3 shrink-0 text-amber-500" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                  {t("templateUpdated", {
+                    count: drift.newRequirements.length,
+                  })}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {drift.newRequirements.join(", ")}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground/80">
+                  {t("templateUpdatedHint")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {totalDocs > 0 && (
           <div className="space-y-1.5">
