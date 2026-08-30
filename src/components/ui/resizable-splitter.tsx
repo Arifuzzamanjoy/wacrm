@@ -36,6 +36,7 @@ export function ResizableSplitter({
   ariaLabel,
 }: ResizableSplitterProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
   const dragStartXRef = useRef(0);
   const dragStartWidthRef = useRef(width);
 
@@ -45,6 +46,7 @@ export function ResizableSplitter({
       e.currentTarget.setPointerCapture(e.pointerId);
       dragStartXRef.current = e.clientX;
       dragStartWidthRef.current = width;
+      isDraggingRef.current = true;
       setIsDragging(true);
       onDraggingChange?.(true);
     },
@@ -53,10 +55,8 @@ export function ResizableSplitter({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDragging) return;
+      if (!isDraggingRef.current) return;
       const deltaX = e.clientX - dragStartXRef.current;
-      // If resizing left panel: moving right (+deltaX) increases width.
-      // If resizing right panel: moving left (-deltaX) increases width.
       const adjustedDelta = side === "left" ? deltaX : -deltaX;
       const calculatedWidth = Math.max(
         minWidth,
@@ -64,29 +64,29 @@ export function ResizableSplitter({
       );
       onWidthChange(calculatedWidth);
     },
-    [isDragging, side, minWidth, maxWidth, onWidthChange]
+    [side, minWidth, maxWidth, onWidthChange]
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (isDragging) {
+      if (isDraggingRef.current) {
         try {
           e.currentTarget.releasePointerCapture(e.pointerId);
         } catch {
           // In case capture was already lost
         }
+        isDraggingRef.current = false;
         setIsDragging(false);
         onDraggingChange?.(false);
       }
     },
-    [isDragging, onDraggingChange]
+    [onDraggingChange]
   );
 
   const handleDoubleClick = useCallback(() => {
     onWidthChange(defaultWidth);
   }, [defaultWidth, onWidthChange]);
 
-  // Keyboard navigation support for accessibility
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       const step = e.shiftKey ? 20 : 8;
@@ -121,7 +121,6 @@ export function ResizableSplitter({
     [side, width, minWidth, maxWidth, defaultWidth, onWidthChange]
   );
 
-  // Global user-select prevention while dragging
   useEffect(() => {
     if (isDragging) {
       document.body.style.userSelect = "none";
@@ -153,7 +152,7 @@ export function ResizableSplitter({
       onKeyDown={handleKeyDown}
       title="Drag to resize, double-click to reset"
       className={cn(
-        "group relative z-20 flex w-2 shrink-0 cursor-col-resize select-none items-center justify-center -mx-1 touch-none transition-colors",
+        "group relative z-20 flex h-full w-2 shrink-0 cursor-col-resize select-none items-center justify-center -mx-1 touch-none transition-colors",
         "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
         className
       )}
