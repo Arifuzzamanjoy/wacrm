@@ -51,6 +51,7 @@ import { differenceInDays, parseISO, isPast } from "date-fns";
 import { generateWhatsAppDocumentChaser } from "@/lib/checklists/checklist-formatter";
 import { getIndustryMeta, sortIndustriesForAccount } from "@/lib/checklists/industries";
 import { detectChecklistDrift } from "@/lib/checklists/drift";
+import { sortTemplatesForPicker } from "@/lib/checklists/template-ordering";
 import { DocumentVerificationDialog } from "./document-verification-dialog";
 import { useTranslations } from "next-intl";
 
@@ -310,7 +311,8 @@ export function DocumentChecklistSidebar({
       (industry) => ({
         industry,
         meta: getIndustryMeta(industry),
-        templates: groups.get(industry) ?? [],
+        // Country-neutral case-type templates first, then corridors.
+        templates: sortTemplatesForPicker(groups.get(industry) ?? []),
       })
     );
   }, [templates, accountIndustry]);

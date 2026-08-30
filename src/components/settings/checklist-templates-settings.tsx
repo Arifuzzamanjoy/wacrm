@@ -10,6 +10,8 @@ import {
   Pencil,
   X,
   Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -74,8 +76,10 @@ export function ChecklistTemplatesSettings() {
 
   const [templates, setTemplates] = useState<ChecklistTemplate[]>([]);
   const [accountIndustry, setAccountIndustry] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingHidden, setSavingHidden] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Editor state — `editing` null means the dialog is closed.
@@ -89,13 +93,16 @@ export function ChecklistTemplatesSettings() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/checklist-templates", {
+      // includeHidden: this panel is where hidden templates get
+      // un-hidden, so it must see them.
+      const res = await fetch("/api/checklist-templates?includeHidden=1", {
         cache: "no-store",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t("loadFailed"));
       setTemplates(data.templates ?? []);
       setAccountIndustry(data.accountIndustry ?? null);
+      setHiddenIds(data.hiddenTemplateIds ?? []);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("loadFailed"));
     } finally {
@@ -183,6 +190,37 @@ export function ChecklistTemplatesSettings() {
       toast.error(err instanceof Error ? err.message : t("saveFailed"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * Hide or show one built-in for this account. Optimistic, with the
+   * previous list restored on failure — a toast alone would leave the
+   * row showing the wrong state until the next reload.
+   */
+  async function toggleHidden(templateId: string) {
+    const previous = hiddenIds;
+    const next = previous.includes(templateId)
+      ? previous.filter((id) => id !== templateId)
+      : [...previous, templateId];
+
+    setHiddenIds(next);
+    setSavingHidden(true);
+    try {
+      const res = await fetch("/api/checklist-templates/hidden", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden_template_ids: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t("hideFailed"));
+      // Trust the server's list — it drops anything non-hideable.
+      setHiddenIds(data.hiddenTemplateIds ?? next);
+    } catch (err) {
+      setHiddenIds(previous);
+      toast.error(err instanceof Error ? err.message : t("hideFailed"));
+    } finally {
+      setSavingHidden(false);
     }
   }
 
@@ -313,8 +351,10 @@ export function ChecklistTemplatesSettings() {
                 </p>
               )}
 
-              {/* Built-ins, for reference. Read-only on purpose: they are
-                  shared by every account. */}
+              {/* Built-ins. Their content is read-only — they are shared
+                  by every account — but each can be hidden from this
+                  account's picker, which is how an agency that works
+                  only some corridors keeps the list short. */}
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Lock className="size-3" />
@@ -323,17 +363,48 @@ export function ChecklistTemplatesSettings() {
                 <p className="mt-0.5 text-xs text-muted-foreground/80">
                   {t("builtInDesc")}
                 </p>
-                <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {global.map((tpl) => (
-                    <li
-                      key={tpl.id}
-                      className="rounded-md bg-muted/60 px-2 py-1 text-xs text-muted-foreground"
-                    >
-                      {getIndustryMeta(tpl.industry as string).emoji}{" "}
-                      {tpl.region_code ? `[${tpl.region_code}] ` : ""}
-                      {tpl.name}
-                    </li>
-                  ))}
+                <ul className="mt-2 space-y-1">
+                  {global.map((tpl) => {
+                    const isHidden = hiddenIds.includes(tpl.id);
+                    return (
+                      <li
+                        key={tpl.id}
+                        className={cn(
+                          "flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs",
+                          isHidden
+                            ? "bg-muted/30 text-muted-foreground/60"
+                            : "bg-muted/60 text-muted-foreground"
+                        )}
+                      >
+                        <span className={cn("truncate", isHidden && "line-through")}>
+                          {getIndustryMeta(tpl.industry as string).emoji}{" "}
+                          {tpl.region_code ? `[${tpl.region_code}] ` : ""}
+                          {tpl.name}
+                        </span>
+                        {canEditSettings && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 shrink-0 px-1.5 text-[11px]"
+                            disabled={savingHidden}
+                            onClick={() => toggleHidden(tpl.id)}
+                          >
+                            {isHidden ? (
+                              <>
+                                <Eye className="size-3" />
+                                {t("show")}
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="size-3" />
+                                {t("hide")}
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </>

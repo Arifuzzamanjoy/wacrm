@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import { validateChecklistTemplate } from "@/lib/checklists/template-validation";
+import {
+  sortTemplatesForPicker,
+  filterHiddenTemplates,
+} from "@/lib/checklists/template-ordering";
+import type { ChecklistTemplate } from "@/types";
 
 /**
  * Checklist templates available to the caller: every global system
@@ -37,17 +42,33 @@ export async function GET(request: Request) {
       );
     }
 
-    // The agency's own vertical, so the client can lead with it.
+    // The agency's own vertical (so the client can lead with it) and
+    // the built-ins it has chosen to hide.
     const { data: account } = await ctx.supabase
       .from("accounts")
-      .select("industry")
+      .select("industry, hidden_checklist_template_ids")
       .eq("id", ctx.accountId)
       .maybeSingle();
 
+    const hiddenIds: string[] =
+      (account?.hidden_checklist_template_ids as string[] | null) ?? [];
+
+    // `?includeHidden=1` is for the settings panel, which has to list
+    // hidden templates in order to offer un-hiding them. Everywhere
+    // else — the inbox picker above all — gets the filtered list.
+    const includeHidden =
+      new URL(request.url).searchParams.get("includeHidden") === "1";
+
+    const all = (data ?? []) as ChecklistTemplate[];
+    const visible = includeHidden
+      ? all
+      : filterHiddenTemplates(all, hiddenIds);
+
     return NextResponse.json({
       ok: true,
-      templates: data ?? [],
+      templates: sortTemplatesForPicker(visible),
       accountIndustry: account?.industry ?? null,
+      hiddenTemplateIds: hiddenIds,
     });
   } catch (err) {
     return toErrorResponse(err);
