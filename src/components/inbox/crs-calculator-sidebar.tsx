@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useAccountIndustry } from "@/hooks/use-account-industry";
 import type {
   Contact,
   CRSAgeRange,
@@ -50,7 +51,28 @@ export function CRSCalculatorSidebar({
 }: CRSCalculatorSidebarProps) {
   const t = useTranslations("Calculator");
 
+  /**
+   * Canada CRS and the Australia points test are immigration
+   * instruments — they are meaningless to a marketing agency or an
+   * e-commerce seller. BANT lead scoring applies to every vertical, so
+   * non-immigration accounts get that alone and the mode switcher
+   * disappears rather than offering two irrelevant tabs.
+   */
+  const { meta: industryMeta } = useAccountIndustry();
+  const showImmigrationModes = industryMeta.immigrationScoring;
+
   const [mode, setMode] = useState<CalculatorMode>("canada_crs");
+
+  /**
+   * The mode actually rendered. Derived rather than corrected in an
+   * effect: a non-immigration account must never see a CRS form, not
+   * even for the one frame before an effect could reset it. Also means
+   * an account switching vertical in settings takes effect instantly,
+   * and the raw `mode` is preserved so switching back restores it.
+   */
+  const effectiveMode: CalculatorMode = showImmigrationModes
+    ? mode
+    : "lead_score";
 
   // --- Canada CRS State ---
   const [crsAge, setCrsAge] = useState<CRSAgeRange>("18_29");
@@ -107,9 +129,9 @@ export function CRSCalculatorSidebar({
   // Handler for sending formatted scorecard to message thread
   const handleSendScorecard = () => {
     let summaryText = "";
-    if (mode === "canada_crs") {
+    if (effectiveMode === "canada_crs") {
       summaryText = crsResult.formattedSummary;
-    } else if (mode === "australia_points") {
+    } else if (effectiveMode === "australia_points") {
       summaryText = ausResult.formattedSummary;
     } else {
       summaryText = bantResult.summary;
@@ -126,7 +148,9 @@ export function CRSCalculatorSidebar({
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-card">
-      {/* Mode Switcher */}
+      {/* Mode Switcher — only meaningful when more than one calculator
+          applies to this vertical. */}
+      {showImmigrationModes && (
       <div className="border-b border-border p-2 bg-muted/20">
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/60 p-0.5">
           <button
@@ -134,7 +158,7 @@ export function CRSCalculatorSidebar({
             onClick={() => setMode("canada_crs")}
             className={cn(
               "flex items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
-              mode === "canada_crs"
+              effectiveMode === "canada_crs"
                 ? "bg-background text-foreground shadow-xs font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             )}
@@ -146,7 +170,7 @@ export function CRSCalculatorSidebar({
             onClick={() => setMode("australia_points")}
             className={cn(
               "flex items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
-              mode === "australia_points"
+              effectiveMode === "australia_points"
                 ? "bg-background text-foreground shadow-xs font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             )}
@@ -159,7 +183,7 @@ export function CRSCalculatorSidebar({
             onClick={() => setMode("lead_score")}
             className={cn(
               "flex items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-medium transition-all",
-              mode === "lead_score"
+              effectiveMode === "lead_score"
                 ? "bg-background text-foreground shadow-xs font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             )}
@@ -169,6 +193,7 @@ export function CRSCalculatorSidebar({
           </button>
         </div>
       </div>
+      )}
 
       <ScrollArea className="flex-1 min-h-0">
         <div className="space-y-4 p-4">
@@ -176,9 +201,9 @@ export function CRSCalculatorSidebar({
           <div>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">
-                {mode === "canada_crs"
+                {effectiveMode === "canada_crs"
                   ? t("countryCanada")
-                  : mode === "australia_points"
+                  : effectiveMode === "australia_points"
                     ? t("countryAustralia")
                     : t("countryLeadScore")}
               </h3>
@@ -194,7 +219,7 @@ export function CRSCalculatorSidebar({
           {/* ============================================================ */}
           {/* 1. CANADA EXPRESS ENTRY CRS CALCULATOR */}
           {/* ============================================================ */}
-          {mode === "canada_crs" && (
+          {effectiveMode === "canada_crs" && (
             <div className="space-y-4">
               {/* Score Meter Banner */}
               <div
@@ -482,7 +507,7 @@ export function CRSCalculatorSidebar({
           {/* ============================================================ */}
           {/* 2. AUSTRALIA POINTS TEST */}
           {/* ============================================================ */}
-          {mode === "australia_points" && (
+          {effectiveMode === "australia_points" && (
             <div className="space-y-4">
               {/* Australia Score Banner */}
               <div
@@ -672,7 +697,7 @@ export function CRSCalculatorSidebar({
           {/* ============================================================ */}
           {/* 3. UNIVERSAL BANT LEAD SCORE */}
           {/* ============================================================ */}
-          {mode === "lead_score" && (
+          {effectiveMode === "lead_score" && (
             <div className="space-y-4">
               <div
                 className={cn(

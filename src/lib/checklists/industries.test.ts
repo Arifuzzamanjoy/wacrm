@@ -43,6 +43,48 @@ describe("industry taxonomy", () => {
   });
 });
 
+describe("sidebar tab labels", () => {
+  it("keeps immigration wording for immigration accounts", () => {
+    const meta = getIndustryMeta("immigration");
+    expect(meta.docsLabel).toBe("Visa Docs");
+    expect(meta.scoreLabel).toBe("Eligibility & CRS");
+    expect(meta.immigrationScoring).toBe(true);
+  });
+
+  it("relabels the tabs for other verticals", () => {
+    expect(getIndustryMeta("marketing").docsLabel).toBe("Assets");
+    expect(getIndustryMeta("healthcare").docsLabel).toBe("Patient Docs");
+    expect(getIndustryMeta("legal").docsLabel).toBe("Case Docs");
+  });
+
+  it("offers immigration calculators to immigration accounts only", () => {
+    for (const industry of INDUSTRIES) {
+      expect(industry.immigrationScoring).toBe(industry.id === "immigration");
+    }
+  });
+
+  it("uses neutral labels when no vertical is chosen", () => {
+    const meta = getIndustryMeta(null);
+    expect(meta.docsLabel).toBe("Documents");
+    expect(meta.scoreLabel).toBe("Lead Score");
+    expect(meta.immigrationScoring).toBe(false);
+  });
+
+  it("gives an account-coined vertical neutral labels, not visa ones", () => {
+    const meta = getIndustryMeta("pet_grooming");
+    expect(meta.label).toBe("Pet Grooming");
+    expect(meta.docsLabel).toBe("Documents");
+    expect(meta.immigrationScoring).toBe(false);
+  });
+
+  it("keeps every tab label short enough for the three-tab strip", () => {
+    // The strip fits roughly 14 characters per tab before wrapping.
+    for (const industry of INDUSTRIES) {
+      expect(industry.docsLabel.length).toBeLessThanOrEqual(14);
+    }
+  });
+});
+
 describe("sortIndustriesForAccount", () => {
   it("floats the account's own vertical to the top", () => {
     const sorted = sortIndustriesForAccount(
