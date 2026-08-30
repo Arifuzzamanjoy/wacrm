@@ -125,7 +125,7 @@ export function CRSCalculatorSidebar({
   };
 
   return (
-    <div className="flex h-full flex-col bg-card">
+    <div className="flex h-full flex-col overflow-hidden bg-card">
       {/* Mode Switcher */}
       <div className="border-b border-border p-2 bg-muted/20">
         <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/60 p-0.5">
@@ -170,7 +170,7 @@ export function CRSCalculatorSidebar({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="space-y-4 p-4">
           {/* Header Info */}
           <div>
