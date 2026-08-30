@@ -753,6 +753,16 @@ export interface ContactDocument {
   verified_at?: string | null;
   verified_by?: string | null;
   metadata?: Record<string, unknown>;
+  /**
+   * Which template this requirement was stamped from, and when
+   * (migration 046). Provenance only — the row is a copy, never a live
+   * reference, so a template edit never rewrites it. Used to notice
+   * that a template gained requirements after this checklist was
+   * applied. Null on rows created before 046 and on manually added
+   * requirements.
+   */
+  template_id?: string | null;
+  applied_at?: string | null;
   created_at: string;
   updated_at: string;
 }

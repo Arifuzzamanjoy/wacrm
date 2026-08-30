@@ -364,6 +364,8 @@
       "attachAction": "Attach",
       "needsFix": "Needs Fix",
       "replace": "replace",
+      "templateUpdated": "Template has {count} new requirement(s) since this checklist was applied",
+      "templateUpdatedHint": "Existing items are untouched. Use Add Doc if any apply to this client.",
       "waived": "Not Applicable",
       "markWaived": "Mark as Not Applicable",
       "waivedHint": "This requirement does not apply to this client.",
