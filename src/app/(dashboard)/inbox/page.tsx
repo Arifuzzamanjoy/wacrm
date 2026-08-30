@@ -442,6 +442,33 @@ function InboxPageInner() {
     setResyncToken((n) => n + 1);
   }, []);
 
+  // Handle deep-link URL changes (e.g. clicking "Open Chat" on a case
+  // member) while conversations are already loaded.  The callback-based
+  // resolver inside handleConversationsLoaded only fires on list fetch;
+  // this effect catches in-page URL-param changes that don't trigger a
+  // refetch.
+  useEffect(() => {
+    if (!deepLinkConvId || conversations.length === 0) return;
+    if (autoSelectedForDeepLinkRef.current === deepLinkConvId) return;
+    if (activeConversation?.id === deepLinkConvId) return;
+
+    autoSelectedForDeepLinkRef.current = deepLinkConvId;
+    const match = conversations.find((c) => c.id === deepLinkConvId);
+    if (match) {
+      setActiveConversation(match);
+      setActiveContact(match.contact ?? null);
+      setMessages([]);
+      if (match.unread_count > 0) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === match.id ? { ...c, unread_count: 0 } : c,
+          ),
+        );
+      }
+      router.replace(`/inbox?c=${match.id}`, { scroll: false });
+    }
+  }, [deepLinkConvId, conversations, activeConversation?.id, router]);
+
   const handleConversationsLoaded = useCallback(
     (loaded: Conversation[]) => {
       setConversations(loaded);
@@ -706,10 +733,15 @@ function InboxPageInner() {
 
         {/* Right panel: Contact sidebar — desktop only, and only when the
             agent hasn't collapsed it via the thread-header toggle (#258).
-            On mobile it's always hidden (the `lg:block` below), so the
-            toggle — which is itself desktop-only — never affects it. */}
+            On mobile it's always hidden (the `lg:flex` below), so the
+            toggle — which is itself desktop-only — never affects it.
+
+            `lg:flex` + `overflow-hidden` are load-bearing: `block` doesn't
+            establish a flex formatting context, so the sidebar's flex-col
+            children can't resolve `flex-1` heights and the ScrollArea
+            never clips — the tab content overflows instead of scrolling. */}
         {contactPanelOpen && (
-          <div className="hidden lg:block lg:w-[var(--right-panel-width)] h-full">
+          <div className="hidden lg:flex lg:w-[var(--right-panel-width)] h-full overflow-hidden">
             <ContactSidebar contact={activeContact} />
           </div>
         )}
