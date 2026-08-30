@@ -742,7 +742,7 @@ function InboxPageInner() {
             never clips — the tab content overflows instead of scrolling. */}
         {contactPanelOpen && (
           <div className="hidden lg:flex lg:w-[var(--right-panel-width)] h-full overflow-hidden">
-            <ContactSidebar contact={activeContact} />
+            <ContactSidebar contact={activeContact} onCollapse={handleToggleContactPanel} />
           </div>
         )}
       </div>

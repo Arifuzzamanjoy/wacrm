@@ -292,7 +292,8 @@
       "addNotePlaceholder": "메모 추가...",
       "detailsTab": "상세 정보",
       "visaDocsTab": "비자 서류",
-      "calculatorTab": "자격 및 CRS 점수"
+      "calculatorTab": "자격 및 CRS 점수",
+      "collapsePanel": "패널 축소"
     },
     "checklist": {
       "visaChecklist": "비자 서류 체크리스트",

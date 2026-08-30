@@ -18,6 +18,7 @@ import {
   UserCircle2,
   Calculator,
   FolderKanban,
+  PanelRightClose,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -31,6 +32,7 @@ import { CaseGroupWidget } from "@/components/cases/case-group-widget";
 interface ContactSidebarProps {
   contact: Contact | null;
   onPrefillReminder?: (text: string) => void;
+  onCollapse?: () => void;
 }
 
 const SIDEBAR_SECTIONS_STORAGE_KEY = "wacrm:inbox:sidebar-sections";
@@ -51,7 +53,7 @@ const DEFAULT_SECTIONS_STATE: SidebarSectionsState = {
   notes: true,
 };
 
-export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarProps) {
+export function ContactSidebar({ contact, onPrefillReminder, onCollapse }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -225,6 +227,17 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
           <Calculator className="h-3.5 w-3.5 text-amber-500" />
           <span>{tSidebar("calculatorTab")}</span>
         </button>
+
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            title={tSidebar("collapsePanel")}
+            className="ml-0.5 flex shrink-0 items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+          >
+            <PanelRightClose className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Tab 1: Details / Overview */}

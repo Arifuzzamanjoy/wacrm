@@ -292,7 +292,8 @@
       "addNotePlaceholder": "Add a note...",
       "detailsTab": "Details",
       "visaDocsTab": "Visa Docs",
-      "calculatorTab": "Eligibility & CRS"
+      "calculatorTab": "Eligibility & CRS",
+      "collapsePanel": "Collapse panel"
     },
     "checklist": {
       "visaChecklist": "Visa Documents Checklist",
