@@ -16,12 +16,14 @@ import {
   Plus,
   FileCheck,
   UserCircle2,
+  Calculator,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 import { DocumentChecklistSidebar } from "./document-checklist-sidebar";
+import { CRSCalculatorSidebar } from "./crs-calculator-sidebar";
 import { CaseGroupWidget } from "@/components/cases/case-group-widget";
 
 interface ContactSidebarProps {
@@ -34,7 +36,7 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
   const tThread = useTranslations("Inbox.messageThread");
 
   const { accountId } = useAuth();
-  const [activeTab, setActiveTab] = useState<"details" | "documents">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "documents" | "calculator">("details");
   const [selectedDocsContact, setSelectedDocsContact] = useState<Contact | null>(null);
   const [copied, setCopied] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -165,6 +167,19 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
         >
           <FileCheck className="h-3.5 w-3.5 text-primary" />
           <span>{tSidebar("visaDocsTab")}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("calculator")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all",
+            activeTab === "calculator"
+              ? "bg-background text-foreground shadow-xs font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          <Calculator className="h-3.5 w-3.5 text-amber-500" />
+          <span>{tSidebar("calculatorTab")}</span>
         </button>
       </div>
 
@@ -349,12 +364,20 @@ export function ContactSidebar({ contact, onPrefillReminder }: ContactSidebarPro
             </div>
           </div>
         </ScrollArea>
-      ) : (
+      ) : activeTab === "documents" ? (
         /* Tab 2: Document Checklist Hub */
         <div className="flex-1 min-h-0">
           <DocumentChecklistSidebar
             contact={contact}
             initialContact={selectedDocsContact}
+            onPrefillReminder={onPrefillReminder}
+          />
+        </div>
+      ) : (
+        /* Tab 3: CRS & Eligibility Calculator */
+        <div className="flex-1 min-h-0">
+          <CRSCalculatorSidebar
+            contact={contact}
             onPrefillReminder={onPrefillReminder}
           />
         </div>

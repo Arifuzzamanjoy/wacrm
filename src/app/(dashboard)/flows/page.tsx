@@ -22,6 +22,10 @@ import {
   Star,
   Sparkles,
   ListTodo,
+  Calculator,
+  GraduationCap,
+  Compass,
+  Award,
 } from "lucide-react";
 
 import { useTranslations } from "next-intl";
@@ -86,7 +90,11 @@ interface TemplateSummary {
     | "FileSearch"
     | "Star"
     | "Sparkles"
-    | "ListTodo";
+    | "ListTodo"
+    | "Calculator"
+    | "GraduationCap"
+    | "Compass"
+    | "Award";
   trigger_type: string;
   node_count: number;
 }
@@ -101,6 +109,10 @@ const TEMPLATE_ICONS = {
   Star,
   Sparkles,
   ListTodo,
+  Calculator,
+  GraduationCap,
+  Compass,
+  Award,
 } as const;
 
 export default function FlowsPage() {
@@ -113,6 +125,7 @@ export default function FlowsPage() {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "immigration" | "sales" | "support">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -279,33 +292,88 @@ export default function FlowsPage() {
 
           {templates.length > 0 && (
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {t("startTemplate")}
-              </p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {templates.map((template) => {
-                  const Icon = TEMPLATE_ICONS[template.icon] ?? FileText;
-                  return (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("startTemplate")}
+                </p>
+                {/* Category Tabs */}
+                <div className="flex items-center rounded-lg bg-muted/60 p-0.5 text-xs">
+                  {[
+                    { id: "all" as const, label: t("tabAll") },
+                    { id: "immigration" as const, label: t("tabImmigration") },
+                    { id: "sales" as const, label: t("tabSales") },
+                    { id: "support" as const, label: t("tabSupport") },
+                  ].map((cat) => (
                     <button
-                      key={template.slug}
+                      key={cat.id}
                       type="button"
-                      onClick={() => handleUseTemplate(template.slug)}
-                      disabled={creating}
-                      className="flex flex-col gap-2.5 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:opacity-50"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-all",
+                        selectedCategory === cat.id
+                          ? "bg-background text-foreground shadow-xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      )}
                     >
-                      <Icon className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-semibold text-popover-foreground">
-                        {template.name}
-                      </span>
-                      <span className="text-xs leading-relaxed text-muted-foreground">
-                        {template.description}
-                      </span>
-                      <span className="mt-auto border-t border-border pt-2 text-[11px] text-muted-foreground">
-                        {t("nodeCount", { count: template.node_count })}
-                      </span>
+                      {cat.label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 max-h-[380px] overflow-y-auto pr-1">
+                {templates
+                  .filter((template) => {
+                    if (selectedCategory === "immigration") {
+                      return [
+                        "canada_crs_calculator",
+                        "australia_points_test",
+                        "uk_visa_eligibility",
+                        "document_collector",
+                      ].includes(template.slug);
+                    }
+                    if (selectedCategory === "sales") {
+                      return [
+                        "lead_capture",
+                        "universal_lead_scoring",
+                        "product_recommender",
+                        "appointment_booking",
+                        "onboarding_checklist",
+                      ].includes(template.slug);
+                    }
+                    if (selectedCategory === "support") {
+                      return [
+                        "welcome_menu",
+                        "faq_bot",
+                        "service_intake",
+                        "feedback_survey",
+                      ].includes(template.slug);
+                    }
+                    return true;
+                  })
+                  .map((template) => {
+                    const Icon = TEMPLATE_ICONS[template.icon as keyof typeof TEMPLATE_ICONS] ?? FileText;
+                    return (
+                      <button
+                        key={template.slug}
+                        type="button"
+                        onClick={() => handleUseTemplate(template.slug)}
+                        disabled={creating}
+                        className="flex flex-col gap-2.5 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:opacity-50"
+                      >
+                        <Icon className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-semibold text-popover-foreground">
+                          {template.name}
+                        </span>
+                        <span className="text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                          {template.description}
+                        </span>
+                        <span className="mt-auto border-t border-border pt-2 text-[11px] text-muted-foreground">
+                          {t("nodeCount", { count: template.node_count })}
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}

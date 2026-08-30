@@ -291,7 +291,8 @@
       "noDeals": "No deals",
       "addNotePlaceholder": "Add a note...",
       "detailsTab": "Details",
-      "visaDocsTab": "Visa Docs"
+      "visaDocsTab": "Visa Docs",
+      "calculatorTab": "Eligibility & CRS"
     },
     "checklist": {
       "visaChecklist": "Visa Documents Checklist",
@@ -1140,7 +1141,11 @@
       "triggerKeywordNone": "Triggers on keyword (none set)",
       "triggerKeyword": "Triggers on: {keywords}",
       "triggerFirstInbound": "Triggers on a contact's first-ever inbound message",
-      "triggerManual": "Manual trigger"
+      "triggerManual": "Manual trigger",
+      "tabAll": "All Templates",
+      "tabImmigration": "Immigration & Points",
+      "tabSales": "Lead Capture & Sales",
+      "tabSupport": "Customer Support"
     },
     "edit": {
       "notFound": "Flow not found.",
@@ -1928,5 +1933,36 @@
     "autoAlertsToggle": "Enable automated daily WhatsApp expiry alerts",
     "thresholds": "Alert Thresholds",
     "saveSettings": "Save Settings"
+  },
+  "Calculator": {
+    "title": "Canada Express Entry CRS Calculator",
+    "subtitle": "Calculate estimated immigration points live and send scorecard to client.",
+    "countryCanada": "Canada Express Entry (CRS)",
+    "countryAustralia": "Australia 189/190 Points",
+    "countryLeadScore": "BANT Lead Qualification",
+    "ageLabel": "Age of Applicant",
+    "educationLabel": "Highest Level of Education",
+    "languageLabel": "English Proficiency (IELTS / CLB)",
+    "experienceLabel": "Skilled Work Experience",
+    "bonusesLabel": "Additional Factors & Bonuses",
+    "canadianExpLabel": "1+ Year Canadian Skilled Exp (+40 pts)",
+    "jobOfferPnpLabel": "Job Offer / Provincial Nomination (+50 pts)",
+    "totalScore": "Total Estimated CRS Score",
+    "breakdown": "Points Breakdown",
+    "sendToChat": "Send Scorecard to WhatsApp",
+    "toastSent": "Scorecard prefilled in message composer",
+    "ageBracket": "Age Bracket",
+    "englishLevel": "English Test Level",
+    "qualification": "Highest Qualification",
+    "passMark": "Pass Mark",
+    "eligibleStatus": "Meets 65-Point Cutoff",
+    "ineligibleStatus": "Below 65-Point Cutoff",
+    "tierHigh": "Strong Candidate (High Priority)",
+    "tierModerate": "Competitive with Booster",
+    "tierAlternative": "Alternative Pathway Needed",
+    "leadBudget": "Budget Tier",
+    "leadAuthority": "Decision Authority",
+    "leadNeed": "Urgency & Need",
+    "leadTimeline": "Target Timeline"
   }
 }

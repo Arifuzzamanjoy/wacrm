@@ -906,3 +906,81 @@ export interface ComplianceOverviewStats {
   total_monitored: number;
 }
 
+// ============================================================
+// Immigration & Eligibility Calculator Types
+// ============================================================
+
+export type CRSAgeRange = '18_29' | '30_34' | '35_39' | '40_44' | '45_plus';
+export type CRSEducation = 'phd' | 'masters' | 'bachelors' | 'diploma_2yr' | 'secondary';
+export type CRSLanguageCLB = 'clb_10' | 'clb_9' | 'clb_8' | 'clb_7' | 'clb_less_7';
+export type CRSForeignExp = '3_plus' | '1_2' | 'less_1';
+export type CRSCanadianExp = '1_plus' | 'none';
+
+export interface CRSCalculatorInput {
+  ageRange: CRSAgeRange;
+  education: CRSEducation;
+  languageClb: CRSLanguageCLB;
+  foreignExperienceYears: CRSForeignExp;
+  canadianExperienceYears?: CRSCanadianExp;
+  hasJobOfferOrPnp?: boolean;
+}
+
+export interface CRSBreakdown {
+  agePoints: number;
+  educationPoints: number;
+  languagePoints: number;
+  experiencePoints: number;
+  bonusPoints: number;
+}
+
+export interface CRSCalculationResult {
+  totalScore: number;
+  maxPossible: number;
+  breakdown: CRSBreakdown;
+  tier: 'high_priority' | 'moderate' | 'alternative_pathway';
+  tierLabel: string;
+  recommendation: string;
+  formattedSummary: string;
+}
+
+export type AustraliaAgeBracket = '18_24' | '25_32' | '33_39' | '40_44';
+export type AustraliaEnglishLevel = 'superior' | 'proficient' | 'competent';
+export type AustraliaQualification = 'doctorate' | 'bachelor_master' | 'diploma_trade';
+export type AustraliaExperience = '8_plus' | '5_7' | '3_4' | 'less_3';
+
+export interface AustraliaPointsInput {
+  ageBracket: AustraliaAgeBracket;
+  englishLevel: AustraliaEnglishLevel;
+  qualification: AustraliaQualification;
+  experienceYears: AustraliaExperience;
+}
+
+export interface AustraliaPointsBreakdown {
+  agePts: number;
+  engPts: number;
+  qualPts: number;
+  expPts: number;
+}
+
+export interface AustraliaPointsResult {
+  totalPoints: number;
+  isEligible: boolean;
+  passMark: number;
+  breakdown: AustraliaPointsBreakdown;
+  formattedSummary: string;
+}
+
+export interface LeadScoringInput {
+  budget: 'enterprise' | 'growth' | 'starter' | 'none';
+  authority: 'decision_maker' | 'influencer' | 'evaluator';
+  need: 'urgent' | 'planned' | 'exploring';
+  timeline: 'immediate' | 'within_1mo' | 'within_3mo' | 'future';
+}
+
+export interface LeadScoringResult {
+  score: number;
+  tier: 'hot' | 'warm' | 'cold';
+  tierLabel: string;
+  summary: string;
+}
+
