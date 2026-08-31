@@ -971,6 +971,13 @@ export interface CRSCalculatorInput {
   languageClb: CRSLanguageCLB;
   foreignExperienceYears: CRSForeignExp;
   canadianExperienceYears?: CRSCanadianExp;
+  /** Enhanced provincial nomination — worth 600 CRS points. */
+  hasProvincialNomination?: boolean;
+  /**
+   * @deprecated Legacy name for `hasProvincialNomination`. It used to
+   * cover "job offer OR nomination", but IRCC removed all arranged
+   * employment points on 2025-03-25, leaving only the nomination.
+   */
   hasJobOfferOrPnp?: boolean;
 }
 
@@ -984,7 +991,12 @@ export interface CRSBreakdown {
 
 export interface CRSCalculationResult {
   totalScore: number;
+  /** Sum of the maxima this estimator models. */
   maxPossible: number;
+  /** The official CRS ceiling (1200), for honest framing of the score. */
+  officialMax: number;
+  /** Plain-language "this is an estimate, not an assessment" notice. */
+  disclaimer: string;
   breakdown: CRSBreakdown;
   tier: 'high_priority' | 'moderate' | 'alternative_pathway';
   tierLabel: string;
@@ -992,7 +1004,7 @@ export interface CRSCalculationResult {
   formattedSummary: string;
 }
 
-export type AustraliaAgeBracket = '18_24' | '25_32' | '33_39' | '40_44';
+export type AustraliaAgeBracket = '18_24' | '25_32' | '33_39' | '40_44' | '45_plus';
 export type AustraliaEnglishLevel = 'superior' | 'proficient' | 'competent';
 export type AustraliaQualification = 'doctorate' | 'bachelor_master' | 'diploma_trade';
 export type AustraliaExperience = '8_plus' | '5_7' | '3_4' | 'less_3';

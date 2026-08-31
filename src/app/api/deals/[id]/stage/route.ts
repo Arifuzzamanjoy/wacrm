@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client';
 import { engineSendTemplate, engineSendText } from '@/lib/automations/meta-send';
 import { runAutomationsForTrigger } from '@/lib/automations/engine';
 import { resolveConversationByPhone } from '@/lib/whatsapp/resolve-conversation';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, DEFAULT_CURRENCY } from '@/lib/currency';
 import type { StageWhatsAppNotification } from '@/types';
 
 function interpolateVariables(template: string, vars: Record<string, string>): string {
@@ -65,6 +65,21 @@ export async function POST(
 
     const previousStageId = deal.stage_id;
 
+    // A drag that lands the card back on its own stage is a no-op. Without
+    // this guard it still messages the client and writes a history row, so
+    // one fumbled drag reads to the customer as a real milestone update.
+    if (previousStageId === newStageId) {
+      return NextResponse.json({
+        ok: true,
+        deal,
+        deal_id: deal.id,
+        stage_id: newStageId,
+        unchanged: true,
+        notification_sent: false,
+        whatsapp_message_id: null,
+      });
+    }
+
     // 3. Update deal stage
     const { data: updatedDeal, error: updateErr } = await db
       .from('deals')
@@ -104,18 +119,31 @@ export async function POST(
           .limit(1)
           .maybeSingle();
 
-        // Fetch caller agent profile name
+        // Fetch caller agent profile name. `profiles.id` is the row's own
+        // uuid — `auth.uid()` lives in `profiles.user_id`, which is what
+        // every other lookup in the codebase keys on.
         const { data: profile } = await db
           .from('profiles')
           .select('full_name')
-          .eq('id', ctx.userId)
+          .eq('user_id', ctx.userId)
           .maybeSingle();
+
+        // Deal currency, else the account default (migration 021), else the
+        // app-wide fallback. Hardcoding USD here would misprice the value
+        // shown to the client for every account not billing in dollars.
+        const { data: acct } = await db
+          .from('accounts')
+          .select('default_currency')
+          .eq('id', ctx.accountId)
+          .maybeSingle();
+        const currency =
+          deal.currency || acct?.default_currency || DEFAULT_CURRENCY;
 
         const variableMap: Record<string, string> = {
           'contact.name': deal.contact.name || deal.contact.phone,
           'contact.phone': deal.contact.phone,
           'deal.title': deal.title || '',
-          'deal.value': formatCurrency(deal.value ?? 0, deal.currency || 'USD'),
+          'deal.value': formatCurrency(deal.value ?? 0, currency),
           'stage.name': targetStage.name || '',
           'deal.expected_close_date': deal.expected_close_date ? String(deal.expected_close_date) : '',
           'case.case_number': linkedCase?.case_number || '',

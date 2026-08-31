@@ -22,12 +22,10 @@ import {
   calculateLeadScore,
 } from "@/lib/immigration/crs-calculator";
 import {
-  Calculator,
   Send,
   Sparkles,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
   TrendingUp,
   Award,
   Compass,
@@ -83,7 +81,7 @@ export function CRSCalculatorSidebar({
   const [crsLang, setCrsLang] = useState<CRSLanguageCLB>("clb_9");
   const [crsExp, setCrsExp] = useState<CRSForeignExp>("3_plus");
   const [canadianExp, setCanadianExp] = useState<CRSCanadianExp>("none");
-  const [hasJobOfferOrPnp, setHasJobOfferOrPnp] = useState<boolean>(false);
+  const [hasProvincialNomination, setHasProvincialNomination] = useState<boolean>(false);
 
   // --- Australia Points State ---
   const [ausAge, setAusAge] = useState<AustraliaAgeBracket>("25_32");
@@ -105,9 +103,9 @@ export function CRSCalculatorSidebar({
       languageClb: crsLang,
       foreignExperienceYears: crsExp,
       canadianExperienceYears: canadianExp,
-      hasJobOfferOrPnp,
+      hasProvincialNomination,
     });
-  }, [crsAge, crsEdu, crsLang, crsExp, canadianExp, hasJobOfferOrPnp]);
+  }, [crsAge, crsEdu, crsLang, crsExp, canadianExp, hasProvincialNomination]);
 
   // Computed Australia Result
   const ausResult = useMemo(() => {
@@ -160,7 +158,7 @@ export function CRSCalculatorSidebar({
       toast.success(t("toastSent"));
     } else {
       navigator.clipboard.writeText(summaryText);
-      toast.success("Scorecard copied to clipboard");
+      toast.success(t("toastCopied"));
     }
   };
 
@@ -300,7 +298,7 @@ export function CRSCalculatorSidebar({
                             : "bg-rose-500"
                       )}
                       style={{
-                        width: `${Math.min(100, Math.round((crsResult.totalScore / 600) * 100))}%`,
+                        width: `${Math.min(100, Math.round((crsResult.totalScore / crsResult.maxPossible) * 100))}%`,
                       }}
                     />
                   </div>
@@ -308,7 +306,7 @@ export function CRSCalculatorSidebar({
                     <span>0</span>
                     <span className="font-semibold text-amber-500">400 (Booster)</span>
                     <span className="font-semibold text-emerald-500">470 (ITA Target)</span>
-                    <span>600</span>
+                    <span>{crsResult.maxPossible}</span>
                   </div>
                 </div>
 
@@ -505,16 +503,16 @@ export function CRSCalculatorSidebar({
 
                     <button
                       type="button"
-                      onClick={() => setHasJobOfferOrPnp(!hasJobOfferOrPnp)}
+                      onClick={() => setHasProvincialNomination(!hasProvincialNomination)}
                       className={cn(
                         "flex w-full items-center justify-between rounded-md border px-3 py-2 text-xs transition-all",
-                        hasJobOfferOrPnp
+                        hasProvincialNomination
                           ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 font-medium"
                           : "border-border bg-card text-muted-foreground hover:bg-muted/50"
                       )}
                     >
-                      <span>{t("jobOfferPnpLabel")}</span>
-                      {hasJobOfferOrPnp && <Check className="h-3.5 w-3.5" />}
+                      <span>{t("provincialNominationLabel")}</span>
+                      {hasProvincialNomination && <Check className="h-3.5 w-3.5" />}
                     </button>
                   </div>
                 </div>

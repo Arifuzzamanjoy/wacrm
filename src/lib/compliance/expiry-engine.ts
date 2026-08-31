@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client';
 import { engineSendText, engineSendTemplate } from '@/lib/automations/meta-send';
 import { resolveConversationByPhone } from '@/lib/whatsapp/resolve-conversation';
 import { resolveAuditUserId } from '@/lib/api/v1/contacts';
+import { formatExpiryReminderMessage } from './reminder-message';
 import type {
   AccountComplianceSettings,
   ComplianceOverviewStats,
@@ -13,6 +14,9 @@ import type {
 } from '@/types';
 
 export const DEFAULT_ALERT_THRESHOLDS = [90, 60, 30, 7];
+
+// Re-exported so existing importers (and the tests) keep working.
+export { formatExpiryReminderMessage };
 
 /**
  * Calculates days remaining until expiration relative to midnight today.
@@ -152,9 +156,13 @@ export async function fetchMonitoredDocuments(accountId: string): Promise<{
   const docIds = docs.map((d) => d.id as string);
 
   // 2. Fetch latest alerts for these documents
+  // account_id is pinned alongside document_id: this runs on the
+  // service-role client, which bypasses RLS, so the tenant boundary has
+  // to be stated in the query rather than assumed from the id space.
   const { data: alerts, error: alertsErr } = await db
     .from('document_expiry_alerts')
     .select('*')
+    .eq('account_id', accountId)
     .in('document_id', docIds)
     .order('sent_at', { ascending: false });
 
@@ -238,34 +246,6 @@ export function matchApplicableAlertTier(
 }
 
 /**
- * Format reminder text using custom template or standard format.
- */
-export function formatExpiryReminderMessage(
-  template: string | null | undefined,
-  contactName: string,
-  docTitle: string,
-  expiryDate: string,
-  daysRemaining: number
-): string {
-  const safeName = contactName || 'Valued Client';
-  const remainingStr = daysRemaining <= 0 ? '0' : String(daysRemaining);
-
-  if (template && template.trim()) {
-    return template
-      .replace(/\{\{1\}\}|\{\{name\}\}|\{\{contact\.name\}\}/gi, safeName)
-      .replace(/\{\{2\}\}|\{\{document\}\}|\{\{title\}\}|\{\{document\.title\}\}/gi, docTitle)
-      .replace(/\{\{3\}\}|\{\{expiry_date\}\}|\{\{date\}\}/gi, expiryDate)
-      .replace(/\{\{4\}\}|\{\{days\}\}|\{\{days_remaining\}\}/gi, remainingStr);
-  }
-
-  if (daysRemaining <= 0) {
-    return `⚠️ Expiry Alert: Hello ${safeName}, your ${docTitle} expired on ${expiryDate}. Please renew and upload your updated document as soon as possible to keep your file active.`;
-  }
-
-  return `⚠️ Expiry Reminder: Hello ${safeName}, your ${docTitle} expires on ${expiryDate} (in ${daysRemaining} days). Please renew and upload your updated document to keep your file active.`;
-}
-
-/**
  * Runs a compliance scan for an account:
  * - Scans all documents with expiry_date.
  * - For thresholds that have been breached, checks if an alert for that tier was already sent.
@@ -298,9 +278,15 @@ export async function runComplianceScanForAccount(
 
   // Fetch all existing alerts for these documents in batch
   const docIds = documents.map((d) => d.id);
+  // Only successfully *sent* alerts suppress a re-send. Failed attempts
+  // are logged to the same table, and counting them as "already sent"
+  // meant one transient Meta API error silently retired that threshold
+  // for the document forever — the client never heard from us again.
   const { data: existingAlerts } = await db
     .from('document_expiry_alerts')
     .select('document_id, alert_tier')
+    .eq('account_id', accountId)
+    .eq('status', 'sent')
     .in('document_id', docIds);
 
   const sentSet = new Set<string>();

@@ -370,7 +370,8 @@
       "markWaived": "Mark as Not Applicable",
       "waivedHint": "This requirement does not apply to this client.",
       "unwaive": "Mark as Required Again",
-      "waivedSuccess": "\"{title}\" marked as not applicable"
+      "waivedSuccess": "\"{title}\" marked as not applicable",
+      "toastDeleteFailed": "Could not delete item"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -1964,7 +1965,11 @@
     "memberRemoved": "Member removed from case",
     "caseCreated": "Case created successfully",
     "caseUpdated": "Case updated",
-    "caseDeleted": "Case deleted"
+    "caseDeleted": "Case deleted",
+    "toastMemberAlreadyAdded": "Contact already added to members list",
+    "toastTitleRequired": "Please enter a case title",
+    "toastTypeRequired": "Please specify a case type",
+    "toastOpenChatFailed": "Failed to open chat"
   },
   "Compliance": {
     "title": "Compliance & Document Expiries",
@@ -1999,7 +2004,16 @@
     "settingsTitle": "Compliance Alert Settings",
     "autoAlertsToggle": "Enable automated daily WhatsApp expiry alerts",
     "thresholds": "Alert Thresholds",
-    "saveSettings": "Save Settings"
+    "saveSettings": "Save Settings",
+    "toastLoadFailed": "Failed to load compliance records",
+    "toastSettingsLoadFailed": "Failed to load settings",
+    "toastSettingsSaved": "Compliance alert settings updated",
+    "toastSettingsSaveFailed": "Failed to update settings",
+    "toastScanFailed": "Failed to execute compliance scan",
+    "toastExpiryRequired": "Please enter a valid expiration date",
+    "toastExpirySaved": "Document expiry date updated",
+    "toastSaveFailed": "Failed to save changes",
+    "toastReminderFailed": "Failed to send WhatsApp alert"
   },
   "Calculator": {
     "title": "Canada Express Entry CRS Calculator",
@@ -2013,7 +2027,7 @@
     "experienceLabel": "Skilled Work Experience",
     "bonusesLabel": "Additional Factors & Bonuses",
     "canadianExpLabel": "1+ Year Canadian Skilled Exp (+40 pts)",
-    "jobOfferPnpLabel": "Job Offer / Provincial Nomination (+50 pts)",
+    "provincialNominationLabel": "Provincial Nomination (+600 pts)",
     "totalScore": "Total Estimated CRS Score",
     "breakdown": "Points Breakdown",
     "sendToChat": "Send Scorecard to WhatsApp",
@@ -2034,6 +2048,7 @@
       "budgetNone": "No Budget",
     "leadAuthority": "Decision Authority",
     "leadNeed": "Urgency & Need",
-    "leadTimeline": "Target Timeline"
+    "leadTimeline": "Target Timeline",
+    "toastCopied": "Scorecard copied to clipboard"
   }
 }

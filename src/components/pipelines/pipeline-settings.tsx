@@ -62,6 +62,14 @@ interface PipelineSettingsProps {
   onCreateNewPipeline: () => void;
 }
 
+/**
+ * The `useTranslations("Pipelines.settings")` function, passed down to
+ * the sub-components below. Typed off next-intl's own return type
+ * rather than `any`, so a typo'd message key is a compile error here
+ * the same as it is at the call site.
+ */
+type SettingsTranslator = ReturnType<typeof useTranslations<"Pipelines.settings">>;
+
 export function PipelineSettings({
   open,
   onOpenChange,
@@ -407,8 +415,7 @@ function SortableStageRow({
   onOpenNotification: () => void;
   onRemove: () => void;
   colors: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: SettingsTranslator;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: stage.id });
@@ -485,8 +492,7 @@ function ColorSwatch({
   value: string;
   onChange: (v: string) => void;
   colors: string[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: SettingsTranslator;
 }) {
   const [open, setOpen] = useState(false);
   return (

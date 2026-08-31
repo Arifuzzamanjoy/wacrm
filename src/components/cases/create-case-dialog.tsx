@@ -220,7 +220,7 @@ export function CreateCaseDialog({
   const handleAddStagedMember = () => {
     if (!selectedSearchContact) return;
     if (stagedMembers.some((m) => m.contact_id === selectedSearchContact.id)) {
-      toast.info("Contact already added to members list");
+      toast.info(t("toastMemberAlreadyAdded"));
       return;
     }
     setStagedMembers((prev) => [
@@ -248,11 +248,11 @@ export function CreateCaseDialog({
       caseTypePreset === "Other" ? customCaseType.trim() : caseTypePreset;
 
     if (!title.trim()) {
-      toast.error("Please enter a case title");
+      toast.error(t("toastTitleRequired"));
       return;
     }
     if (!finalCaseType) {
-      toast.error("Please specify a case type");
+      toast.error(t("toastTypeRequired"));
       return;
     }
 

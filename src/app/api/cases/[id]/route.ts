@@ -2,6 +2,18 @@ import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import type { CaseStatus } from "@/types";
 
+/** Mirrors the `cases_status_check` CHECK constraint in migration 040. */
+const CASE_STATUSES: CaseStatus[] = [
+  "active",
+  "in_progress",
+  "submitted",
+  "approved",
+  "completed",
+  "closed",
+  "on_hold",
+  "cancelled",
+];
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -63,6 +75,15 @@ export async function PATCH(
         typeof body.description === "string" ? body.description.trim() || null : null;
     }
     if ("status" in body && typeof body.status === "string") {
+      // Unvalidated, an unknown status reached the DB CHECK constraint
+      // and came back as a 500. Reject it here with something the
+      // caller can read.
+      if (!CASE_STATUSES.includes(body.status as CaseStatus)) {
+        return NextResponse.json(
+          { error: `status must be one of: ${CASE_STATUSES.join(", ")}` },
+          { status: 400 }
+        );
+      }
       updatePayload.status = body.status as CaseStatus;
     }
     if ("metadata" in body && typeof body.metadata === "object" && body.metadata !== null) {
