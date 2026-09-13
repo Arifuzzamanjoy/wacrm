@@ -6,7 +6,11 @@
 // whether the account is on OpenAI or Anthropic.
 // ============================================================
 
-export type AiProvider = 'openai' | 'anthropic' | 'groq'
+import type { AgentQualification } from './agent-types'
+
+/** `n8n` is the external-agent provider: wacrm POSTs a signed request to
+ *  the account's own agent workflow instead of calling an LLM directly. */
+export type AiProvider = 'openai' | 'anthropic' | 'groq' | 'n8n'
 
 /**
  * Account AI setup, decrypted and ready to use. Produced by
@@ -29,6 +33,16 @@ export interface AiConfig {
    *  knowledge base is embedded and semantic retrieval turns on; when
    *  null, retrieval falls back to lexical full-text search. */
   embeddingsApiKey: string | null
+  /** External agent webhook URL (provider `n8n` only). For that
+   *  provider `apiKey` is the shared signing secret. */
+  agentUrl: string | null
+  /** Release a bot handoff after this many hours without a human reply.
+   *  Null keeps handoffs sticky until someone resumes the bot. */
+  handoffTimeoutHours: number | null
+  /** Pipeline + stage a deal is created in when the agent reports a
+   *  qualified lead. Either null → never create deals. */
+  dealPipelineId: string | null
+  dealStageId: string | null
 }
 
 /** A single conversation turn in the shape both providers accept. */
@@ -62,6 +76,10 @@ export interface GenerateResult {
   handoff: boolean
   /** Provider token usage for this call, or null when unavailable. */
   usage: AiUsage | null
+  /** Why the agent handed off (external agent only; null otherwise). */
+  reason?: string | null
+  /** Lead qualification inferred by the agent (external agent only). */
+  qualification?: AgentQualification | null
 }
 
 /**

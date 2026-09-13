@@ -4,6 +4,9 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults'
+
+const PROVIDERS: readonly AiProvider[] = ['openai', 'anthropic', 'groq', 'n8n']
 
 /**
  * POST /api/ai/test  (admin+)
@@ -27,13 +30,24 @@ export async function POST(request: Request) {
     }
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'groq') {
+    if (!PROVIDERS.includes(provider)) {
       return NextResponse.json(
-        { error: 'provider must be "openai", "anthropic", or "groq"' },
+        { error: 'provider must be "openai", "anthropic", "groq", or "n8n"' },
         { status: 400 },
       )
     }
-    const model = typeof body.model === 'string' ? body.model.trim() : ''
+    const isExternalAgent = provider === 'n8n'
+    const model = isExternalAgent
+      ? AI_PROVIDER_DEFAULT_MODEL.n8n
+      : typeof body.model === 'string'
+        ? body.model.trim()
+        : ''
+    // The agent URL is checked (SSRF guard, https) inside the provider.
+    const agentUrl =
+      isExternalAgent && typeof body.agent_url === 'string' ? body.agent_url.trim() : ''
+    if (isExternalAgent && !agentUrl) {
+      return NextResponse.json({ error: 'Enter the agent URL to test.' }, { status: 400 })
+    }
     if (!model) {
       return NextResponse.json({ error: 'model is required' }, { status: 400 })
     }
@@ -73,6 +87,10 @@ export async function POST(request: Request) {
         autoReplyMaxPerConversation: 3,
         handoffAgentId: null,
         embeddingsApiKey: null,
+        agentUrl: agentUrl || null,
+        handoffTimeoutHours: null,
+        dealPipelineId: null,
+        dealStageId: null,
       })
     } catch (err) {
       if (err instanceof AiError) {

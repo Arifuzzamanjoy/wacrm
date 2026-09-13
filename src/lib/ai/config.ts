@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
-import type { AiConfig } from './types'
+import type { AiConfig, AiProvider } from './types'
 
 interface AiConfigRow {
-  provider: 'openai' | 'anthropic'
+  provider: AiProvider
   model: string
   api_key: string
   system_prompt: string | null
@@ -12,10 +12,14 @@ interface AiConfigRow {
   auto_reply_max_per_conversation: number
   handoff_agent_id: string | null
   embeddings_api_key: string | null
+  agent_url: string | null
+  handoff_timeout_hours: number | null
+  agent_deal_pipeline_id: string | null
+  agent_deal_stage_id: string | null
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key'
+  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, agent_url, handoff_timeout_hours, agent_deal_pipeline_id, agent_deal_stage_id'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -79,6 +83,10 @@ export async function loadAiConfig(
     autoReplyMaxPerConversation: row.auto_reply_max_per_conversation,
     handoffAgentId: row.handoff_agent_id,
     embeddingsApiKey,
+    agentUrl: row.agent_url ?? null,
+    handoffTimeoutHours: row.handoff_timeout_hours ?? null,
+    dealPipelineId: row.agent_deal_pipeline_id ?? null,
+    dealStageId: row.agent_deal_stage_id ?? null,
   }
 }
 

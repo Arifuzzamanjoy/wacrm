@@ -293,7 +293,10 @@
       "detailsTab": "상세 정보",
       "visaDocsTab": "비자 서류",
       "calculatorTab": "자격 및 CRS 점수",
-      "collapsePanel": "패널 축소"
+      "collapsePanel": "패널 축소",
+      "cameFromAd": "광고를 통해 유입",
+      "adId": "광고",
+      "viewAd": "광고 보기"
     },
     "checklist": {
       "visaChecklist": "서류 체크리스트",
@@ -1834,7 +1837,7 @@
     },
     "aiConfig": {
       "title": "에이전트 설정",
-      "description": "직접 발급받은 OpenAI, Anthropic, 또는 Groq 키를 사용하세요. wacrm은 회원님의 키로 공급자에 직접 요청하므로 좌석당 AI 비용이 없고 데이터도 온전히 회원님의 것입니다. 인박스의 AI 답장 초안, 자동 응답 봇, 플레이그라운드에 사용됩니다.",
+      "description": "직접 발급받은 OpenAI, Anthropic, 또는 Groq 키를 사용하거나 자체 n8n 에이전트 워크플로를 연결하세요. wacrm은 회원님의 키로 공급자에 직접 요청하므로 좌석당 AI 비용이 없고 데이터도 온전히 회원님의 것입니다. 인박스의 AI 답장 초안, 자동 응답 봇, 플레이그라운드에 사용됩니다.",
       "adminOnlyConfig": "관리자와 소유자만 AI 설정을 변경할 수 있습니다.",
       "loadFailed": "AI 설정을 불러오지 못했습니다",
       "providerAndKey": "공급자 & 키",
@@ -1870,7 +1873,22 @@
       "saveSuccess": "AI 어시스턴트가 저장되었습니다.",
       "saveFailed": "저장하지 못했습니다.",
       "removeSuccess": "AI 설정이 제거되었습니다.",
-      "removeFailed": "제거하지 못했습니다."
+      "removeFailed": "제거하지 못했습니다.",
+      "agentUrl": "에이전트 웹훅 URL",
+      "agentUrlHint": "wacrm이 각 대화를 이 n8n 웹훅으로 보내고, 반환된 답장을 전송합니다. WhatsApp 번호는 wacrm에 연결된 상태로 두고 n8n에는 연결하지 마세요.",
+      "signingSecret": "서명 시크릿",
+      "signingSecretHint": "n8n 워크플로와 공유됩니다. 모든 요청은 이 값으로 서명(X-Wacrm-Signature)되고 Bearer 토큰으로 전송됩니다.",
+      "testAgent": "에이전트 테스트",
+      "missingAgentUrl": "에이전트 웹훅 URL을 입력하세요.",
+      "handoffTimeout": "봇에게 다시 넘기기까지 (시간)",
+      "handoffTimeoutDesc": "봇이 인계한 뒤 이 시간 동안 상담원 답장이 없으면 봇이 대화를 다시 맡습니다. 비워두면 누군가 봇을 재개할 때까지 상담원에게 남습니다.",
+      "handoffTimeoutNever": "사용 안 함",
+      "agentDeals": "적격 리드에 대한 딜 생성",
+      "agentDealsDesc": "에이전트가 리드를 적격으로 표시하면 이 파이프라인 단계에 연락처의 딜을 엽니다(연락처당 한 번).",
+      "agentDealsPipeline": "파이프라인",
+      "agentDealsStage": "단계",
+      "agentDealsNone": "딜 생성 안 함",
+      "missingDealStage": "에이전트 딜의 단계를 선택하세요."
     },
     "aiKnowledge": {
       "loadFailed": "지식베이스를 불러오지 못했습니다",
@@ -2049,6 +2067,7 @@
     "leadAuthority": "의사 결정권",
     "leadNeed": "필요성 및 긴급도",
     "leadTimeline": "목표 일정",
-    "toastCopied": "점수표가 클립보드에 복사되었습니다"
+    "toastCopied": "점수표가 클립보드에 복사되었습니다",
+    "leadFromAgent": "AI 에이전트"
   }
 }

@@ -14,5 +14,8 @@ export async function validateAiCredentials(config: AiConfig): Promise<void> {
     config,
     systemPrompt: 'You are a connectivity check. Reply with the single word: OK.',
     messages: [{ role: 'user', content: 'ping' }],
+    // The external agent gets an explicit ping so the workflow can
+    // answer without spending an LLM call.
+    agent: { mode: 'ping' },
   })
 }

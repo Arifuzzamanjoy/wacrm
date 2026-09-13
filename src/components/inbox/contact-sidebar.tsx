@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
+import { Megaphone } from "lucide-react";
 import { DocumentChecklistSidebar } from "./document-checklist-sidebar";
 import { CRSCalculatorSidebar } from "./crs-calculator-sidebar";
 import { CaseGroupWidget } from "@/components/cases/case-group-widget";
@@ -298,6 +299,41 @@ export function ContactSidebar({ contact, onPrefillReminder, onCollapse }: Conta
                   <div className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground">
                     <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="truncate">{contact.email}</span>
+                  </div>
+                )}
+
+                {contact.ad_referral && (
+                  <div className="rounded-lg border border-border bg-muted/30 px-2.5 py-2 text-xs">
+                    <div className="flex items-center gap-1.5 font-medium text-foreground">
+                      <Megaphone className="h-3.5 w-3.5 text-primary" />
+                      {tSidebar("cameFromAd")}
+                    </div>
+                    {contact.ad_referral.headline && (
+                      <p className="mt-1 text-muted-foreground">
+                        {contact.ad_referral.headline}
+                      </p>
+                    )}
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {[
+                        contact.ad_referral.source_type,
+                        contact.ad_referral.source_id &&
+                          `${tSidebar("adId")} ${contact.ad_referral.source_id}`,
+                        contact.ad_referral_at &&
+                          format(new Date(contact.ad_referral_at), "MMM d, yyyy"),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {contact.ad_referral.source_url && /^https?:\/\//.test(contact.ad_referral.source_url) && (
+                      <a
+                        href={contact.ad_referral.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-[11px] text-primary hover:underline"
+                      >
+                        {tSidebar("viewAd")}
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

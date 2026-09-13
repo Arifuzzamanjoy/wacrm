@@ -293,7 +293,10 @@
       "detailsTab": "Details",
       "visaDocsTab": "Visa Docs",
       "calculatorTab": "Eligibility & CRS",
-      "collapsePanel": "Collapse panel"
+      "collapsePanel": "Collapse panel",
+      "cameFromAd": "Came from an ad",
+      "adId": "Ad",
+      "viewAd": "View ad"
     },
     "checklist": {
       "visaChecklist": "Document Checklist",
@@ -1834,7 +1837,7 @@
     },
     "aiConfig": {
       "title": "Agent setup",
-      "description": "Bring your own OpenAI, Anthropic, or Groq key. wacrm calls the provider directly with your key — no per-seat AI fees, and your data stays yours. This powers AI-drafted replies in the inbox, the auto-reply bot, and the Playground.",
+      "description": "Bring your own OpenAI, Anthropic, or Groq key — or connect your own n8n agent workflow. wacrm calls the provider directly with your key — no per-seat AI fees, and your data stays yours. This powers AI-drafted replies in the inbox, the auto-reply bot, and the Playground.",
       "adminOnlyConfig": "Only admins and owners can change the AI configuration.",
       "loadFailed": "Failed to load AI configuration",
       "providerAndKey": "Provider & key",
@@ -1870,7 +1873,22 @@
       "saveSuccess": "AI assistant saved.",
       "saveFailed": "Failed to save.",
       "removeSuccess": "AI configuration removed.",
-      "removeFailed": "Failed to remove."
+      "removeFailed": "Failed to remove.",
+      "agentUrl": "Agent webhook URL",
+      "agentUrlHint": "wacrm POSTs each conversation to this n8n webhook and sends back the reply it returns. Your WhatsApp number stays connected to wacrm — do not also connect it to n8n.",
+      "signingSecret": "Signing secret",
+      "signingSecretHint": "Shared with the n8n workflow. Every request is signed with it (X-Wacrm-Signature) and sent as a Bearer token.",
+      "testAgent": "Test agent",
+      "missingAgentUrl": "Enter the agent webhook URL.",
+      "handoffTimeout": "Hand back to the bot after (hours)",
+      "handoffTimeoutDesc": "When the bot hands off, it takes the chat back after this many hours with no human reply. Leave blank to keep it with a human until someone resumes the bot.",
+      "handoffTimeoutNever": "Never",
+      "agentDeals": "Create deals for qualified leads",
+      "agentDealsDesc": "When the agent marks a lead as qualified, open a deal for the contact in this pipeline stage (once per contact).",
+      "agentDealsPipeline": "Pipeline",
+      "agentDealsStage": "Stage",
+      "agentDealsNone": "Don't create deals",
+      "missingDealStage": "Pick a stage for agent deals."
     },
     "aiKnowledge": {
       "loadFailed": "Failed to load knowledge base",
@@ -2049,6 +2067,7 @@
     "leadAuthority": "Decision Authority",
     "leadNeed": "Urgency & Need",
     "leadTimeline": "Target Timeline",
-    "toastCopied": "Scorecard copied to clipboard"
+    "toastCopied": "Scorecard copied to clipboard",
+    "leadFromAgent": "AI agent"
   }
 }

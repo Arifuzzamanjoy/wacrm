@@ -20,8 +20,10 @@ const MAX_QUOTE_LEN = 160
 export function buildHandoffSummary(args: {
   messages: ChatMessage[]
   replyCount: number
+  /** The agent's own reason, when it gave one (external agent). */
+  reason?: string | null
 }): string {
-  const { messages, replyCount } = args
+  const { messages, replyCount, reason } = args
 
   const lastCustomer = [...messages]
     .reverse()
@@ -32,7 +34,10 @@ export function buildHandoffSummary(args: {
       ? 'without replying'
       : `after ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`
 
-  const base = `🤖 AI agent handed off ${replies}.`
+  const why = reason?.trim()
+  const base = why
+    ? `🤖 AI agent handed off ${replies}: ${truncate(why, MAX_QUOTE_LEN)}.`
+    : `🤖 AI agent handed off ${replies}.`
 
   if (!lastCustomer) return base
 
@@ -44,4 +49,25 @@ function truncate(text: string, max: number): string {
   const collapsed = text.replace(/\s+/g, ' ')
   if (collapsed.length <= max) return collapsed
   return `${collapsed.slice(0, max - 1).trimEnd()}…`
+}
+
+/**
+ * Whether a bot handoff has timed out and the bot may take the thread
+ * back. The clock restarts on every human reply, so a conversation a
+ * teammate is actively working never gets the bot back mid-thread.
+ * `timeoutHours` null/0 means handoffs never expire.
+ */
+export function isHandoffExpired(args: {
+  handoffAt: string | null
+  lastHumanReplyAt: string | null
+  timeoutHours: number | null
+  now: number
+}): boolean {
+  const { handoffAt, lastHumanReplyAt, timeoutHours, now } = args
+  if (!handoffAt || !timeoutHours || timeoutHours <= 0) return false
+  const handoffMs = Date.parse(handoffAt)
+  if (!Number.isFinite(handoffMs)) return false
+  const humanMs = lastHumanReplyAt ? Date.parse(lastHumanReplyAt) : NaN
+  const since = Number.isFinite(humanMs) ? Math.max(handoffMs, humanMs) : handoffMs
+  return now - since >= timeoutHours * 60 * 60 * 1000
 }

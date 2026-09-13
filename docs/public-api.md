@@ -50,6 +50,7 @@ it. Grant the minimum.
 | `conversations:read` | List and read conversations              |
 | `broadcasts:send`    | Launch broadcast campaigns               |
 | `webhooks:manage`    | Register and manage outbound webhooks    |
+| `knowledge:write`    | Create and update AI knowledge documents |
 
 A key with **no scopes** still authenticates and can call
 `GET /api/v1/me` — useful for verifying a key works.
@@ -262,6 +263,29 @@ Invalid phone numbers are dropped and counted as `rejected`. Response
 Broadcast status + counts. Scope: `broadcasts:send`. `status` moves
 `sending` → `sent`; `delivered_count` / `read_count` keep climbing as
 Meta delivery webhooks arrive. `404` for another account's broadcast.
+
+### Knowledge base
+
+#### `POST /api/v1/knowledge`
+
+Upsert an AI knowledge-base document. Scope: `knowledge:write`.
+Documents are keyed by `title` within the account. An existing title
+has its content replaced and re-indexed (`200`, `created: false`). A new
+title creates a document (`201`, `created: true`). Sending the same
+content again is a no-op (`reindexed: false`). This lets a scheduled job
+(e.g. the n8n Google Doc sync in [docs/n8n-agent.md](./n8n-agent.md))
+keep the assistant's knowledge in step with an outside source.
+
+```jsonc
+// request
+{ "title": "Agency knowledge base (Google Doc)", "content": "Our services …" }
+
+// response
+{ "data": { "id": "…", "created": false, "reindexed": true, "warning": null } }
+```
+
+`warning` is set when the embeddings step failed. The document is still
+searchable by keyword.
 
 ## Pagination
 

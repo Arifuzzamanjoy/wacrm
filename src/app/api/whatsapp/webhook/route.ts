@@ -10,6 +10,8 @@ import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
+import { parseReferral, type WhatsAppReferral } from '@/lib/whatsapp/referral'
+import type { InboundMediaRef } from '@/lib/ai/agent-media'
 import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
@@ -69,6 +71,8 @@ interface WhatsAppMessage {
   button?: { text?: string; payload?: string }
   /** Present when the customer swipe-replies to one of our messages. */
   context?: { id: string }
+  /** Present on the first message of a click-to-WhatsApp ad chat. */
+  referral?: WhatsAppReferral
 }
 
 interface WhatsAppWebhookEntry {
@@ -678,6 +682,11 @@ async function processMessage(
     .eq('sender_type', 'customer')
   const isFirstInboundMessage = (priorCustomerMsgCount ?? 0) === 0
 
+  // Click-to-WhatsApp ad attribution. Only written when present so a
+  // database that hasn't applied migration 050 yet keeps accepting
+  // ordinary inbound messages.
+  const referral = parseReferral(message.referral)
+
   // Idempotent insert. Meta retries webhook deliveries (a slow ack, a
   // transient 5xx), and each retry replays the exact same message.id. The
   // unique index on (conversation_id, message_id) added in migration 037
@@ -703,6 +712,7 @@ async function processMessage(
         // the column; null for every other content_type so existing inserts
         // behave identically.
         interactive_reply_id: interactiveReplyId,
+        ...(referral ? { referral } : {}),
       },
       { onConflict: 'conversation_id,message_id', ignoreDuplicates: true }
     )
@@ -742,6 +752,19 @@ async function processMessage(
 
   if (convError) {
     console.error('Error updating conversation:', convError)
+  }
+
+  // First-touch attribution: the contact keeps the first ad that ever
+  // brought them in. The IS NULL filter makes a later ad click a no-op.
+  if (referral) {
+    const { error: refErr } = await supabaseAdmin()
+      .from('contacts')
+      .update({ ad_referral: referral, ad_referral_at: new Date().toISOString() })
+      .eq('id', contactRecord.id)
+      .is('ad_referral', null)
+    if (refErr) {
+      console.error('[webhook] ad referral update failed:', refErr.message)
+    }
   }
 
   // A customer writing again re-opens the thread (issue #409). Kept as a
@@ -852,17 +875,28 @@ async function processMessage(
     }).catch((err) => console.error('[automations] dispatch failed:', err))
   }
 
-  // AI auto-reply. Runs only for plain-text inbound the deterministic
-  // flow runner did NOT consume (flows win over the LLM), and only when
-  // the account has enabled it. Awaited inside `after()` (same reason as
-  // the webhook dispatch below); `dispatchInboundToAiReply` owns its
+  // AI auto-reply. Runs for inbound the deterministic flow runner did
+  // NOT consume (flows win over the LLM), and only when the account has
+  // enabled it. Text goes to every provider; caption-less media only
+  // reaches the external agent, which can transcribe / read it (the
+  // dispatcher applies that rule). Awaited inside `after()` (same reason
+  // as the webhook dispatch below); `dispatchInboundToAiReply` owns its
   // eligibility gates + try/catch and never throws.
-  if (!flowConsumed && !interactiveReplyId && inboundText.trim()) {
+  const inboundMedia = mediaRefForAi(message)
+  if (!flowConsumed && !interactiveReplyId && (inboundText.trim() || inboundMedia)) {
     await dispatchInboundToAiReply({
       accountId,
       conversationId: conversation.id,
       contactId: contactRecord.id,
       configOwnerUserId,
+      inbound: {
+        whatsappMessageId: message.id,
+        type: message.type,
+        text: inboundText,
+        media: inboundMedia,
+      },
+      referral,
+      accessToken,
     })
   }
 
@@ -880,6 +914,37 @@ async function processMessage(
     content_type: contentType,
     text: contentText,
   })
+}
+
+/**
+ * The media object an inbound message carries, in the shape the AI
+ * dispatcher inlines for the external agent. Null for non-media types.
+ */
+function mediaRefForAi(message: WhatsAppMessage): InboundMediaRef | null {
+  switch (message.type) {
+    case 'image':
+      return message.image?.id
+        ? { id: message.image.id, kind: 'image', mimeType: message.image.mime_type ?? null, filename: null, caption: message.image.caption ?? null }
+        : null
+    case 'video':
+      return message.video?.id
+        ? { id: message.video.id, kind: 'video', mimeType: message.video.mime_type ?? null, filename: null, caption: message.video.caption ?? null }
+        : null
+    case 'audio':
+      return message.audio?.id
+        ? { id: message.audio.id, kind: 'audio', mimeType: message.audio.mime_type ?? null, filename: null, caption: null }
+        : null
+    case 'document':
+      return message.document?.id
+        ? { id: message.document.id, kind: 'document', mimeType: message.document.mime_type ?? null, filename: message.document.filename ?? null, caption: message.document.caption ?? null }
+        : null
+    case 'sticker':
+      return message.sticker?.id
+        ? { id: message.sticker.id, kind: 'sticker', mimeType: message.sticker.mime_type ?? null, filename: null, caption: null }
+        : null
+    default:
+      return null
+  }
 }
 
 async function parseMessageContent(

@@ -1,3 +1,4 @@
+import type { AdReferral } from "@/lib/whatsapp/referral";
 import type { AccountRole } from "@/lib/auth/roles";
 import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
 
@@ -108,6 +109,11 @@ export interface Contact {
   email?: string;
   company?: string;
   avatar_url?: string;
+  /** First-touch click-to-WhatsApp ad attribution (migration 050).
+   *  Set from the first inbound message that carried a Meta ad
+   *  `referral`; never overwritten. */
+  ad_referral?: AdReferral | null;
+  ad_referral_at?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
@@ -181,6 +187,8 @@ export interface Conversation {
   ai_autoreply_disabled?: boolean;
   ai_reply_count?: number;
   ai_handoff_summary?: string | null;
+  /** When the bot handed off (migration 050); drives the handoff time limit. */
+  ai_handoff_at?: string | null;
 }
 
 // ============================================================

@@ -14,6 +14,9 @@ export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
   openai: 'gpt-5.4-mini',
   anthropic: 'claude-haiku-4-5-20251001',
   groq: 'llama-3.1-8b-instant',
+  // Not a model — the external agent picks its own. Stored only because
+  // `ai_configs.model` is NOT NULL.
+  n8n: 'n8n-agent',
 }
 
 /**

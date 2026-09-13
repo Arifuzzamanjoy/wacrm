@@ -31,6 +31,7 @@ import type { AiProvider } from '@/lib/ai/types';
 import type { AccountMember } from '@/types';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
 import { useTranslations } from 'next-intl';
+import { createClient } from '@/lib/supabase/client';
 
 const MASKED_KEY = '••••••••••••••••';
 
@@ -42,13 +43,25 @@ const PROVIDER_LABEL: Record<AiProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
   groq: 'Groq',
+  n8n: 'n8n agent (webhook)',
 };
 
 const KEY_PLACEHOLDER: Record<AiProvider, string> = {
   openai: 'sk-...',
   anthropic: 'sk-ant-...',
   groq: 'gsk_...',
+  n8n: 'a long random secret, shared with your n8n workflow',
 };
+
+// "No deals" choice for the agent-deal pipeline picker (Radix Select
+// can't use an empty-string item value).
+const NO_DEAL_PIPELINE = '__none__';
+
+interface PipelineOption {
+  id: string;
+  name: string;
+  stages: { id: string; name: string; position: number }[];
+}
 
 export function AiConfig() {
   const { accountId, accountRole, profileLoading } = useAuth();
@@ -77,6 +90,13 @@ export function AiConfig() {
   // Empty string = leave unassigned (shared queue).
   const [handoffAgentId, setHandoffAgentId] = useState('');
   const [members, setMembers] = useState<AccountMember[]>([]);
+  const [agentUrl, setAgentUrl] = useState('');
+  // Empty string = handoffs never expire.
+  const [handoffTimeoutHours, setHandoffTimeoutHours] = useState('');
+  const [dealPipelineId, setDealPipelineId] = useState('');
+  const [dealStageId, setDealStageId] = useState('');
+  const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
+  const isExternalAgent = provider === 'n8n';
 
   // Guard keyed on the account (not a bare boolean) so an in-place
   // account switch — ownership transfer, multi-account membership —
@@ -102,6 +122,12 @@ export function AiConfig() {
         setAutoReplyEnabled(data.auto_reply_enabled);
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
         setHandoffAgentId(data.handoff_agent_id ?? '');
+        setAgentUrl(data.agent_url ?? '');
+        setHandoffTimeoutHours(
+          data.handoff_timeout_hours ? String(data.handoff_timeout_hours) : '',
+        );
+        setDealPipelineId(data.agent_deal_pipeline_id ?? '');
+        setDealStageId(data.agent_deal_stage_id ?? '');
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
         setKeyEdited(false);
@@ -124,6 +150,16 @@ export function AiConfig() {
     // older deployment without the endpoint the picker just shows the
     // queue option.
     void fetchAccountMembers().then(setMembers);
+    // Pipelines populate the agent-deal target picker (RLS scopes the
+    // rows to this account).
+    const supabase = createClient();
+    void supabase
+      .from('pipelines')
+      .select('id, name, stages:pipeline_stages(id, name, position)')
+      .order('name')
+      .then(({ data }) => {
+        if (data) setPipelines(data as PipelineOption[]);
+      });
   }, [accountId, fetchConfig]);
 
   // Swap the model default when the provider changes, unless the user
@@ -153,6 +189,10 @@ export function AiConfig() {
     auto_reply_enabled: autoReplyEnabled,
     auto_reply_max_per_conversation: maxPerConversation,
     handoff_agent_id: handoffAgentId || null,
+    agent_url: isExternalAgent ? agentUrl.trim() : undefined,
+    handoff_timeout_hours: handoffTimeoutHours ? Number(handoffTimeoutHours) : null,
+    agent_deal_pipeline_id: dealPipelineId || null,
+    agent_deal_stage_id: dealPipelineId ? dealStageId || null : null,
   });
 
   const handleTest = async () => {
@@ -165,6 +205,7 @@ export function AiConfig() {
           provider,
           model: model.trim(),
           api_key: keyPayload(),
+          agent_url: isExternalAgent ? agentUrl.trim() : undefined,
         }),
       });
       const data = await res.json();
@@ -178,8 +219,16 @@ export function AiConfig() {
   };
 
   const handleSave = async () => {
-    if (!model.trim()) {
+    if (!isExternalAgent && !model.trim()) {
       toast.error(t('missingModel'));
+      return;
+    }
+    if (isExternalAgent && !agentUrl.trim()) {
+      toast.error(t('missingAgentUrl'));
+      return;
+    }
+    if (dealPipelineId && !dealStageId) {
+      toast.error(t('missingDealStage'));
       return;
     }
     if (!configured && !keyEdited) {
@@ -284,24 +333,45 @@ export function AiConfig() {
                       {PROVIDER_LABEL.anthropic}
                     </SelectItem>
                     <SelectItem value="groq">{PROVIDER_LABEL.groq}</SelectItem>
+                    <SelectItem value="n8n">{PROVIDER_LABEL.n8n}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="ai-model">{t('model')}</Label>
-                <Input
-                  id="ai-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
-                  disabled={disabled}
-                />
-              </div>
+              {isExternalAgent ? (
+                <div className="space-y-2">
+                  <Label htmlFor="ai-agent-url">{t('agentUrl')}</Label>
+                  <Input
+                    id="ai-agent-url"
+                    value={agentUrl}
+                    onChange={(e) => setAgentUrl(e.target.value)}
+                    placeholder="https://n8n.example.com/webhook/wacrm-agent"
+                    disabled={disabled}
+                    autoComplete="off"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="ai-model">{t('model')}</Label>
+                  <Input
+                    id="ai-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
+                    disabled={disabled}
+                  />
+                </div>
+              )}
             </div>
 
+            {isExternalAgent && (
+              <p className="text-xs text-muted-foreground">{t('agentUrlHint')}</p>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="ai-key">{t('apiKey')}</Label>
+              <Label htmlFor="ai-key">
+                {isExternalAgent ? t('signingSecret') : t('apiKey')}
+              </Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -345,9 +415,12 @@ export function AiConfig() {
                   ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                   )}
-                  {t('testKey')}
+                  {isExternalAgent ? t('testAgent') : t('testKey')}
                 </Button>
               </div>
+              {isExternalAgent && (
+                <p className="text-xs text-muted-foreground">{t('signingSecretHint')}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -486,6 +559,84 @@ export function AiConfig() {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="ai-handoff-timeout">{t('handoffTimeout')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('handoffTimeoutDesc')}
+                </p>
+              </div>
+              <Input
+                id="ai-handoff-timeout"
+                type="number"
+                min={1}
+                max={720}
+                value={handoffTimeoutHours}
+                placeholder={t('handoffTimeoutNever')}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (!raw) return setHandoffTimeoutHours('');
+                  const hours = Math.min(720, Math.max(1, Math.floor(Number(raw)) || 1));
+                  setHandoffTimeoutHours(String(hours));
+                }}
+                disabled={disabled || !autoReplyEnabled}
+                className="w-24"
+              />
+            </div>
+
+            {isExternalAgent && (
+              <div className="space-y-2">
+                <Label>{t('agentDeals')}</Label>
+                <p className="text-xs text-muted-foreground">{t('agentDealsDesc')}</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Select
+                    value={dealPipelineId || NO_DEAL_PIPELINE}
+                    onValueChange={(v) => {
+                      const next = !v || v === NO_DEAL_PIPELINE ? '' : v;
+                      setDealPipelineId(next);
+                      const first = pipelines
+                        .find((p) => p.id === next)
+                        ?.stages.slice()
+                        .sort((a, b) => a.position - b.position)[0];
+                      setDealStageId(first?.id ?? '');
+                    }}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger aria-label={t('agentDealsPipeline')}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_DEAL_PIPELINE}>{t('agentDealsNone')}</SelectItem>
+                      {pipelines.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={dealStageId}
+                    onValueChange={(v) => setDealStageId(v ?? '')}
+                    disabled={disabled || !dealPipelineId}
+                  >
+                    <SelectTrigger aria-label={t('agentDealsStage')}>
+                      <SelectValue placeholder={t('agentDealsStage')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(pipelines.find((p) => p.id === dealPipelineId)?.stages ?? [])
+                        .slice()
+                        .sort((a, b) => a.position - b.position)
+                        .map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

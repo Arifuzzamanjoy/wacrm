@@ -9,6 +9,8 @@ import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
 import { generateGroq } from './providers/groq'
+import { buildAgentRequest, callAgent } from './providers/n8n'
+import type { AgentRequest } from './agent-types'
 
 export interface GenerateArgs {
   config: AiConfig
@@ -16,6 +18,15 @@ export interface GenerateArgs {
   systemPrompt: string
   /** Recent conversation turns, oldest first. */
   messages: ChatMessage[]
+  /**
+   * Extra context for the external agent provider (`n8n`): the caller's
+   * mode, the contact, the inbound message + media, ad attribution and
+   * retrieved knowledge. Ignored by the LLM providers, which only need
+   * `systemPrompt` + `messages`.
+   */
+  agent?: Partial<
+    Omit<AgentRequest, 'version' | 'history' | 'business_context'>
+  >
 }
 
 /**
@@ -45,6 +56,8 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     case 'groq':
       result = await generateGroq(providerArgs)
       break
+    case 'n8n':
+      return generateExternalAgent(args, timeoutMs)
     default:
       throw new AiError(`Unsupported AI provider: ${config.provider}`, {
         code: 'unsupported_provider',
@@ -53,6 +66,52 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   }
 
   return parseGeneration(result.text, result.usage)
+}
+
+/**
+ * Ask the account's external agent for the next reply. The agent gets
+ * the business context and conversation as structured data rather than
+ * wacrm's prompt scaffold — it owns its own persona and instructions.
+ */
+async function generateExternalAgent(
+  args: GenerateArgs,
+  timeoutMs: number,
+): Promise<GenerateResult> {
+  const { config, messages, agent } = args
+  if (!config.agentUrl) {
+    throw new AiError('No agent URL is configured.', {
+      code: 'agent_url_missing',
+      status: 400,
+    })
+  }
+
+  const response = await callAgent({
+    url: config.agentUrl,
+    secret: config.apiKey,
+    timeoutMs,
+    request: buildAgentRequest({
+      mode: agent?.mode ?? 'draft',
+      account_id: agent?.account_id ?? null,
+      conversation_id: agent?.conversation_id ?? null,
+      contact: agent?.contact ?? null,
+      message: agent?.message ?? null,
+      ad_referral: agent?.ad_referral ?? null,
+      history: messages,
+      knowledge: agent?.knowledge ?? [],
+      business_context: config.systemPrompt,
+      actions_enabled: agent?.actions_enabled ?? false,
+    }),
+  })
+
+  // The agent can also signal a handoff with the text sentinel, same as
+  // the LLM providers — honour either.
+  const parsed = parseGeneration(response.text, null)
+  return {
+    ...parsed,
+    handoff: parsed.handoff || response.handoff,
+    reason: response.reason,
+    qualification: response.qualification,
+  }
 }
 
 /**

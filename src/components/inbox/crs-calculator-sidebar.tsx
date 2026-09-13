@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { useAccountIndustry } from "@/hooks/use-account-industry";
 import { useAuth } from "@/hooks/use-auth";
 import { buildBantBudgetOptions } from "@/lib/leads/bant-tiers";
@@ -94,6 +95,51 @@ export function CRSCalculatorSidebar({
   const [bantAuthority, setBantAuthority] = useState<"decision_maker" | "influencer" | "evaluator">("decision_maker");
   const [bantNeed, setBantNeed] = useState<"urgent" | "planned" | "exploring">("planned");
   const [bantTimeline, setBantTimeline] = useState<"immediate" | "within_1mo" | "within_3mo" | "future">("within_1mo");
+
+  /**
+   * Where the BANT answers came from. When the AI agent qualified this
+   * lead in chat, the panel opens pre-filled with its latest assessment
+   * so the counselor reviews instead of re-asking.
+   */
+  const [bantSource, setBantSource] = useState<"ai_agent" | "manual" | null>(null);
+
+  useEffect(() => {
+    if (!contact?.id) return;
+    let cancelled = false;
+    const supabase = createClient();
+    void supabase
+      .from("contact_eligibility_assessments")
+      .select("input_parameters")
+      .eq("contact_id", contact.id)
+      .eq("assessment_type", "lead_score")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const p = (data?.input_parameters ?? null) as Record<string, string> | null;
+        if (!p) {
+          setBantSource(null);
+          return;
+        }
+        if (["enterprise", "growth", "starter", "none"].includes(p.budget)) {
+          setBantBudget(p.budget as typeof bantBudget);
+        }
+        if (["decision_maker", "influencer", "evaluator"].includes(p.authority)) {
+          setBantAuthority(p.authority as typeof bantAuthority);
+        }
+        if (["urgent", "planned", "exploring"].includes(p.need)) {
+          setBantNeed(p.need as typeof bantNeed);
+        }
+        if (["immediate", "within_1mo", "within_3mo", "future"].includes(p.timeline)) {
+          setBantTimeline(p.timeline as typeof bantTimeline);
+        }
+        setBantSource(p.source === "ai_agent" ? "ai_agent" : "manual");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact?.id]);
 
   // Computed CRS Result
   const crsResult = useMemo(() => {
@@ -730,6 +776,11 @@ export function CRSCalculatorSidebar({
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       BANT Qualification Score
                     </span>
+                    {bantSource === "ai_agent" && (
+                      <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        <Sparkles className="h-3 w-3" /> {t("leadFromAgent")}
+                      </span>
+                    )}
                     <div className="mt-1 flex items-baseline gap-1.5">
                       <span className="text-3xl font-extrabold tracking-tight text-foreground">
                         {bantResult.score}

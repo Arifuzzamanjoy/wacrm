@@ -9,6 +9,10 @@ import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
 import { AiError, type AiProvider } from '@/lib/ai/types'
+import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults'
+import { isAllowedAgentUrl } from '@/lib/ai/providers/n8n'
+
+const PROVIDERS: readonly AiProvider[] = ['openai', 'anthropic', 'groq', 'n8n']
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -30,7 +34,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key, agent_url, handoff_timeout_hours, agent_deal_pipeline_id, agent_deal_stage_id',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -78,11 +82,77 @@ export async function POST(request: Request) {
     if (!body || typeof body !== 'object') return bad('Invalid request body')
 
     const provider = body.provider as AiProvider
-    if (provider !== 'openai' && provider !== 'anthropic' && provider !== 'groq') {
-      return bad('provider must be "openai", "anthropic", or "groq"')
+    if (!PROVIDERS.includes(provider)) {
+      return bad('provider must be "openai", "anthropic", "groq", or "n8n"')
     }
-    const model = typeof body.model === 'string' ? body.model.trim() : ''
+    const isExternalAgent = provider === 'n8n'
+    // The external agent picks its own model; `model` is NOT NULL, so it
+    // gets a fixed label.
+    const model = isExternalAgent
+      ? AI_PROVIDER_DEFAULT_MODEL.n8n
+      : typeof body.model === 'string'
+        ? body.model.trim()
+        : ''
     if (!model) return bad('model is required')
+
+    // Agent URL — required for the external agent, cleared otherwise so a
+    // stale URL never lingers behind an LLM provider.
+    let agentUrl: string | null = null
+    if (isExternalAgent) {
+      agentUrl = typeof body.agent_url === 'string' ? body.agent_url.trim() : ''
+      if (!agentUrl) return bad('agent_url is required for the n8n agent')
+      if (!(await isAllowedAgentUrl(agentUrl))) {
+        return bad('agent_url must be a public https:// URL')
+      }
+    }
+
+    // Handoff time limit: absent → unchanged; null/'' → never expire;
+    // otherwise whole hours between 1 and 720 (30 days).
+    const handoffTimeoutProvided = 'handoff_timeout_hours' in body
+    let handoffTimeoutHours: number | null = null
+    if (
+      handoffTimeoutProvided &&
+      body.handoff_timeout_hours !== null &&
+      body.handoff_timeout_hours !== ''
+    ) {
+      const hours = Number(body.handoff_timeout_hours)
+      if (!Number.isInteger(hours) || hours < 1 || hours > 720) {
+        return bad('handoff_timeout_hours must be a whole number from 1 to 720')
+      }
+      handoffTimeoutHours = hours
+    }
+
+    // Deal target for agent-qualified leads: both ids or neither. The
+    // stage must belong to the pipeline, and the pipeline to this account.
+    const dealTargetProvided = 'agent_deal_pipeline_id' in body
+    const dealPipelineId =
+      typeof body.agent_deal_pipeline_id === 'string' && body.agent_deal_pipeline_id.trim()
+        ? body.agent_deal_pipeline_id.trim()
+        : null
+    const dealStageId =
+      typeof body.agent_deal_stage_id === 'string' && body.agent_deal_stage_id.trim()
+        ? body.agent_deal_stage_id.trim()
+        : null
+    if (dealTargetProvided && (dealPipelineId || dealStageId)) {
+      if (!dealPipelineId || !dealStageId) {
+        return bad('Pick both a pipeline and a stage for agent deals')
+      }
+      const { data: pipeline } = await supabase
+        .from('pipelines')
+        .select('id')
+        .eq('id', dealPipelineId)
+        .eq('account_id', accountId)
+        .maybeSingle()
+      const { data: stage } = await supabase
+        .from('pipeline_stages')
+        .select('id')
+        .eq('id', dealStageId)
+        .eq('pipeline_id', dealPipelineId)
+        .maybeSingle()
+      if (!pipeline || !stage) {
+        return bad('The deal stage must belong to a pipeline in this account')
+      }
+    }
 
     const systemPrompt =
       typeof body.system_prompt === 'string' && body.system_prompt.trim()
@@ -128,7 +198,7 @@ export async function POST(request: Request) {
     // Reuse the stored key when the form didn't send a fresh one.
     const { data: existing } = await supabase
       .from('ai_configs')
-      .select('id, provider, model, api_key')
+      .select('id, provider, model, api_key, agent_url')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -153,7 +223,8 @@ export async function POST(request: Request) {
       !existing ||
       rawKey !== '' ||
       provider !== existing.provider ||
-      model !== existing.model
+      model !== existing.model ||
+      agentUrl !== (existing.agent_url ?? null)
 
     if (credentialsChanged) {
       try {
@@ -167,6 +238,10 @@ export async function POST(request: Request) {
           autoReplyMaxPerConversation: maxPer,
           handoffAgentId: null,
           embeddingsApiKey: null,
+          agentUrl,
+          handoffTimeoutHours: null,
+          dealPipelineId: null,
+          dealStageId: null,
         })
       } catch (err) {
         if (err instanceof AiError) {
@@ -205,6 +280,12 @@ export async function POST(request: Request) {
       is_active: isActive,
       auto_reply_enabled: autoReplyEnabled,
       auto_reply_max_per_conversation: maxPer,
+      agent_url: agentUrl,
+    }
+    if (handoffTimeoutProvided) shared.handoff_timeout_hours = handoffTimeoutHours
+    if (dealTargetProvided) {
+      shared.agent_deal_pipeline_id = dealPipelineId
+      shared.agent_deal_stage_id = dealStageId
     }
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.
