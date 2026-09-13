@@ -392,7 +392,7 @@ export function DocumentChecklistSidebar({
       toast.success(t("docDeleted"));
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
     } catch {
-      toast.error("Could not delete item");
+      toast.error(t("toastDeleteFailed"));
     }
   };
 

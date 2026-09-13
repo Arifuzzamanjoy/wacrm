@@ -5,17 +5,35 @@ on:
     branches:
       - main
 
+# One deploy at a time. Without this, two merges landing close together
+# race each other through `git pull` + `docker compose up` on the same
+# checkout and can leave the server running a half-built image.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Least privilege: this job only needs to open an SSH session, not
+    # to read or write anything in the repo through the GITHUB_TOKEN.
+    permissions: {}
     steps:
       - name: Execute SSH commands on server
-        uses: appleboy/ssh-action@master
+        # Pinned to the full commit SHA of v1.2.5 rather than a mutable
+        # ref. This action is handed a production SSH private key, so
+        # `@master` would let anyone who compromises the upstream repo
+        # swap in code that exfiltrates it on the next deploy — the
+        # tj-actions/changed-files pattern from March 2025. Bump this
+        # deliberately (SHA + comment together) when upgrading.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /home/ubuntu/CRM/wacrm
             git pull origin main
             docker compose --env-file .env.local up -d --build

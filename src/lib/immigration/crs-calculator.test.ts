@@ -3,6 +3,9 @@ import {
   calculateCRS,
   calculateAustraliaPoints,
   calculateLeadScore,
+  CRS_MODELLED_MAX,
+  CRS_OFFICIAL_MAX,
+  CRS_PROVINCIAL_NOMINATION_POINTS,
 } from "./crs-calculator";
 
 describe("calculateCRS", () => {
@@ -16,7 +19,8 @@ describe("calculateCRS", () => {
     });
 
     expect(result.totalScore).toBe(419);
-    expect(result.maxPossible).toBe(600);
+    expect(result.maxPossible).toBe(CRS_MODELLED_MAX);
+    expect(result.officialMax).toBe(CRS_OFFICIAL_MAX);
     expect(result.tier).toBe("moderate");
     expect(result.tierLabel).toBe("Competitive with Booster");
     expect(result.breakdown).toEqual({
@@ -26,14 +30,37 @@ describe("calculateCRS", () => {
       experiencePoints: 50,
       bonusPoints: 0,
     });
-    expect(result.formattedSummary).toContain("Canada Express Entry CRS Scorecard");
-    expect(result.formattedSummary).toContain("Total Estimated Score: 419 / 600");
-    expect(result.formattedSummary).toContain("• Age Points: 110/110");
+    expect(result.formattedSummary).toContain("Canada Express Entry CRS Estimate");
+    expect(result.formattedSummary).toContain("Estimated Score: 419");
+    expect(result.formattedSummary).toContain(`official CRS scale: 0–${CRS_OFFICIAL_MAX}`);
+    expect(result.formattedSummary).toContain("• Age: 110/110");
+    // The score goes to a prospective applicant, so it must never read
+    // as an IRCC determination.
+    expect(result.formattedSummary).toContain("Unofficial estimate");
   });
 
-  it("calculates high priority score with bonuses (Profile B)", () => {
-    // 26 yrs (110) + PhD (150) + CLB 10 (136) + 3+ yrs (50) + Canadian Exp (40) + Job Offer (50) = 536
+  it("scores a provincial nomination at the official 600 points (Profile B)", () => {
+    // 26 yrs (110) + PhD (150) + CLB 10 (136) + 3+ yrs (50)
+    //   + Canadian exp (40) + provincial nomination (600) = 1086
     const result = calculateCRS({
+      ageRange: "18_29",
+      education: "phd",
+      languageClb: "clb_10",
+      foreignExperienceYears: "3_plus",
+      canadianExperienceYears: "1_plus",
+      hasProvincialNomination: true,
+    });
+
+    expect(CRS_PROVINCIAL_NOMINATION_POINTS).toBe(600);
+    expect(result.totalScore).toBe(1086);
+    expect(result.tier).toBe("high_priority");
+    expect(result.tierLabel).toBe("Strong Candidate (High Priority)");
+    expect(result.breakdown.bonusPoints).toBe(640);
+    expect(result.formattedSummary).toContain("Strong Candidate (High Priority)");
+  });
+
+  it("honours the legacy hasJobOfferOrPnp flag as a nomination", () => {
+    const legacy = calculateCRS({
       ageRange: "18_29",
       education: "phd",
       languageClb: "clb_10",
@@ -41,13 +68,16 @@ describe("calculateCRS", () => {
       canadianExperienceYears: "1_plus",
       hasJobOfferOrPnp: true,
     });
+    const current = calculateCRS({
+      ageRange: "18_29",
+      education: "phd",
+      languageClb: "clb_10",
+      foreignExperienceYears: "3_plus",
+      canadianExperienceYears: "1_plus",
+      hasProvincialNomination: true,
+    });
 
-    expect(result.totalScore).toBe(536);
-    expect(result.tier).toBe("high_priority");
-    expect(result.tierLabel).toBe("Strong Candidate (High Priority)");
-    expect(result.breakdown.bonusPoints).toBe(90);
-    expect(result.formattedSummary).toContain("• Bonus Points: 90");
-    expect(result.formattedSummary).toContain("Strong Candidate (High Priority)");
+    expect(legacy.totalScore).toBe(current.totalScore);
   });
 
   it("handles alternative pathway tier for low score profiles", () => {
@@ -86,6 +116,22 @@ describe("calculateCRS", () => {
 });
 
 describe("calculateAustraliaPoints", () => {
+  it("gives an over-45 applicant zero age points", () => {
+    // The bracket was missing from the table, so the old `?? 15`
+    // fallback credited them with the 40-44 bracket's points.
+    const result = calculateAustraliaPoints({
+      ageBracket: "45_plus",
+      englishLevel: "superior",
+      qualification: "doctorate",
+      experienceYears: "8_plus",
+    });
+
+    expect(result.breakdown.agePts).toBe(0);
+    expect(result.totalPoints).toBe(55);
+    expect(result.isEligible).toBe(false);
+    expect(result.formattedSummary).toContain("Unofficial estimate");
+  });
+
   it("computes eligible score above 65 cutoff", () => {
     // Age 28 (25_32: 30) + Superior (20) + Bachelor/Master (15) + 5-7 yrs (10) = 75
     const result = calculateAustraliaPoints({

@@ -57,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { formatExpiryReminderMessage } from "@/lib/compliance/reminder-message";
 
 type FilterTab = "all" | "expired" | "critical" | "warning" | "compliant";
 
@@ -119,11 +120,11 @@ export default function CompliancePage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load compliance records");
+      toast.error(t("toastLoadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     loadComplianceData();
@@ -142,7 +143,7 @@ export default function CompliancePage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load settings");
+      toast.error(t("toastSettingsLoadFailed"));
     } finally {
       setSettingsLoading(false);
     }
@@ -166,11 +167,11 @@ export default function CompliancePage() {
       });
 
       if (!res.ok) throw new Error("Failed to save settings");
-      toast.success("Compliance alert settings updated");
+      toast.success(t("toastSettingsSaved"));
       setSettingsOpen(false);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update settings");
+      toast.error(t("toastSettingsSaveFailed"));
     } finally {
       setSavingSettings(false);
     }
@@ -195,7 +196,7 @@ export default function CompliancePage() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to execute compliance scan");
+      toast.error(t("toastScanFailed"));
     } finally {
       setScanning(false);
     }
@@ -212,7 +213,7 @@ export default function CompliancePage() {
   const handleSaveExpiry = async () => {
     if (!editDoc || !editDoc.contact_id) return;
     if (!newExpiryDate) {
-      toast.error("Please enter a valid expiration date");
+      toast.error(t("toastExpiryRequired"));
       return;
     }
 
@@ -229,12 +230,12 @@ export default function CompliancePage() {
       });
 
       if (!res.ok) throw new Error("Failed to update document expiry");
-      toast.success("Document expiry date updated");
+      toast.success(t("toastExpirySaved"));
       setEditDoc(null);
       await loadComplianceData();
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save changes");
+      toast.error(t("toastSaveFailed"));
     } finally {
       setSavingDoc(false);
     }
@@ -243,12 +244,17 @@ export default function CompliancePage() {
   // Open Send Reminder Dialog
   const handleOpenRemind = (doc: MonitoredDocumentItem) => {
     setRemindDoc(doc);
-    const clientName = doc.contact?.name || "Client";
-    const defaultMsg =
-      doc.days_remaining <= 0
-        ? `⚠️ Expiry Alert: Hello ${clientName}, your document "${doc.title}" expired on ${doc.expiry_date}. Please renew and upload your updated document as soon as possible to keep your file active.`
-        : `⚠️ Expiry Reminder: Hello ${clientName}, your "${doc.title}" expires on ${doc.expiry_date} (in ${doc.days_remaining} days). Please renew and upload your updated document to keep your file active.`;
-    setCustomMessage(defaultMsg);
+    // Same wording the scheduled scan sends, so the agent edits the
+    // real message rather than a near-copy that has drifted from it.
+    setCustomMessage(
+      formatExpiryReminderMessage(
+        null,
+        doc.contact?.name || "",
+        doc.title,
+        doc.expiry_date || "",
+        doc.days_remaining
+      )
+    );
   };
 
   // Dispatch Manual Reminder
@@ -271,13 +277,13 @@ export default function CompliancePage() {
       }
 
       toast.success(
-        t("toastReminderSent", { name: remindDoc.contact?.name || "Client" })
+        t("toastReminderSent", { name: remindDoc.contact?.name || "" })
       );
       setRemindDoc(null);
       await loadComplianceData();
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Failed to send WhatsApp alert");
+      toast.error(err instanceof Error ? err.message : t("toastReminderFailed"));
     } finally {
       setSendingReminder(false);
     }

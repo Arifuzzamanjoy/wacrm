@@ -125,6 +125,18 @@ function createMockDb(
           })),
         };
       }
+      if (table === 'accounts') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: { default_currency: 'USD' },
+                error: null,
+              }),
+            })),
+          })),
+        };
+      }
       if (table === 'conversations') {
         return {
           select: vi.fn(() => ({
@@ -266,6 +278,82 @@ describe('POST /api/deals/[id]/stage', () => {
         }),
       })
     );
+  });
+
+  it('looks the agent profile up by user_id, not by the profiles row id', async () => {
+    const mockDeal = {
+      id: 'deal-101',
+      title: 'Luxury Villa Offer',
+      value: 250000,
+      currency: 'USD',
+      stage_id: 'stage-1',
+      pipeline_id: 'pipe-1',
+      contact_id: 'contact-99',
+      contact: { id: 'contact-99', name: 'Jane Smith', phone: '+15559998888' },
+    };
+    const mockTargetStage = {
+      id: 'stage-2',
+      name: 'Offer Accepted',
+      pipeline_id: 'pipe-1',
+      whatsapp_notification: {
+        enabled: true,
+        mode: 'custom_text',
+        custom_text: 'Handled by {{user.name}}',
+      },
+    };
+    const db = createMockDb(mockDeal, mockTargetStage);
+    mocks.supabaseAdmin.mockReturnValue(db);
+
+    const req = new Request('http://localhost/api/deals/deal-101/stage', {
+      method: 'POST',
+      body: JSON.stringify({ new_stage_id: 'stage-2' }),
+    });
+    await POST(req, params);
+
+    // `profiles.id` is the row's own uuid; auth.uid() lives in
+    // `profiles.user_id`. Keying on the wrong column silently returned
+    // no row, so every notification said "Agent".
+    expect(mocks.engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'Handled by Agent Smith' })
+    );
+  });
+
+  it('treats a move onto the current stage as a no-op and sends nothing', async () => {
+    const mockDeal = {
+      id: 'deal-101',
+      title: 'Luxury Villa Offer',
+      value: 250000,
+      currency: 'USD',
+      stage_id: 'stage-2',
+      pipeline_id: 'pipe-1',
+      contact_id: 'contact-99',
+      contact: { id: 'contact-99', name: 'Jane Smith', phone: '+15559998888' },
+    };
+    const mockTargetStage = {
+      id: 'stage-2',
+      name: 'Offer Accepted',
+      pipeline_id: 'pipe-1',
+      whatsapp_notification: {
+        enabled: true,
+        mode: 'custom_text',
+        custom_text: 'Your deal moved to {{stage.name}}',
+      },
+    };
+    const db = createMockDb(mockDeal, mockTargetStage);
+    mocks.supabaseAdmin.mockReturnValue(db);
+
+    const req = new Request('http://localhost/api/deals/deal-101/stage', {
+      method: 'POST',
+      body: JSON.stringify({ new_stage_id: 'stage-2' }),
+    });
+    const res = await POST(req, params);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.unchanged).toBe(true);
+    expect(json.notification_sent).toBe(false);
+    expect(mocks.engineSendText).not.toHaveBeenCalled();
+    expect(db._historyInserts).toHaveLength(0);
   });
 
   it('supports custom text notifications with dynamic placeholders', async () => {

@@ -102,7 +102,7 @@ export function CaseMemberCard({
       router.push(`/inbox?c=${conv.id}`);
     } catch (err) {
       console.error("Failed to lookup conversation:", err);
-      toast.error("Failed to open chat");
+      toast.error(t("toastOpenChatFailed"));
     } finally {
       setOpeningChat(false);
     }

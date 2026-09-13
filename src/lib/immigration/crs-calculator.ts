@@ -1,6 +1,20 @@
 /**
- * Official Canada Express Entry Comprehensive Ranking System (CRS) & Points Engine.
- * Covers Core Human Capital (Age, Education, First Language, Experience) and Bonuses.
+ * Canada Express Entry Comprehensive Ranking System (CRS) & related
+ * points engines.
+ *
+ * Scope, stated plainly because the output goes to prospective clients:
+ * this is an *estimate* over the single-applicant core human capital
+ * factors (age, education, first official language, foreign work
+ * experience) plus Canadian experience and provincial nomination. It
+ * does not model spouse factors, second official language, skill
+ * transferability combinations, Canadian study, sibling in Canada, or
+ * French-language bonuses, so a real profile can score higher.
+ *
+ * Point values follow IRCC's published grid. Two things worth flagging
+ * because the previous version of this file got them wrong:
+ *   - A provincial nomination is worth 600 points, not 50.
+ *   - Arranged employment earns no CRS points at all: IRCC removed the
+ *     50/200-point job-offer bonus on 2025-03-25.
  */
 
 import type {
@@ -23,8 +37,24 @@ export type {
   LeadScoringResult,
 };
 
+export const CRS_DISCLAIMER =
+  "Unofficial estimate for guidance only — not an IRCC assessment. It covers a single applicant and omits spouse, second-language, skill-transferability and study/sibling factors. Draw cut-offs change with every round.";
+
 /**
- * Calculates Canada Express Entry CRS score out of 600 (Core Human Capital + Skill Transferability/Bonuses)
+ * The official CRS ceiling: 600 core + spouse + skill transferability,
+ * plus 600 additional factors.
+ */
+export const CRS_OFFICIAL_MAX = 1200;
+
+/** Sum of the maxima this estimator actually models. */
+export const CRS_MODELLED_MAX = 110 + 150 + 136 + 50 + 40 + 600;
+
+/** Points for an enhanced provincial nomination. */
+export const CRS_PROVINCIAL_NOMINATION_POINTS = 600;
+
+/**
+ * Estimate a single applicant's CRS score over the factors modelled
+ * here. See the file header for what is and isn't covered.
  */
 export function calculateCRS(input: CRSCalculatorInput): CRSCalculationResult {
   // 1. Age Points (Single applicant scale, max 110)
@@ -65,10 +95,17 @@ export function calculateCRS(input: CRSCalculatorInput): CRSCalculationResult {
   };
   const experiencePoints = expMap[input.foreignExperienceYears] ?? 0;
 
-  // 5. Bonuses (Canadian exp / PNP / Job offer)
+  // 5. Bonuses (Canadian experience / provincial nomination).
+  //
+  // `hasJobOfferOrPnp` is the legacy field name and is honoured as an
+  // alias so existing callers keep working; it means "has a provincial
+  // nomination". A bare job offer contributes nothing post-2025-03-25.
   let bonusPoints = 0;
   if (input.canadianExperienceYears === "1_plus") bonusPoints += 40;
-  if (input.hasJobOfferOrPnp) bonusPoints += 50;
+  const hasNomination = Boolean(
+    input.hasProvincialNomination ?? input.hasJobOfferOrPnp
+  );
+  if (hasNomination) bonusPoints += CRS_PROVINCIAL_NOMINATION_POINTS;
 
   const totalScore = agePoints + educationPoints + languagePoints + experiencePoints + bonusPoints;
 
@@ -76,35 +113,38 @@ export function calculateCRS(input: CRSCalculatorInput): CRSCalculationResult {
   let tier: CRSCalculationResult["tier"] = "alternative_pathway";
   let tierLabel = "Alternative Pathway Needed";
   let recommendation =
-    "Your current estimated score is below the competitive threshold for direct PR. We recommend exploring Provincial Nominee Programs (PNP), IELTS score improvement, or a Canadian study permit.";
+    "Your current estimated score is below the range recent Express Entry draws have been cutting off at. We recommend exploring Provincial Nominee Programs (PNP), improving your language test result, or a Canadian study permit.";
 
   if (totalScore >= 470) {
     tier = "high_priority";
     tierLabel = "Strong Candidate (High Priority)";
     recommendation =
-      "Outstanding profile! Your score is within the competitive range for direct Express Entry draws. We recommend proceeding immediately with ECA credential evaluation and IELTS booking.";
+      "Strong profile — your estimated score is within the range recent Express Entry draws have been cutting off at. We recommend proceeding with ECA credential evaluation and booking a language test.";
   } else if (totalScore >= 400) {
     tier = "moderate";
     tierLabel = "Competitive with Booster";
     recommendation =
-      "Good foundation! Achieving CLB 9 (IELTS 8,7,7,7) or targeting an Express Entry-aligned Provincial Nominee Program (PNP) can grant you an extra 50-600 points.";
+      "Good foundation. Reaching CLB 9 (IELTS 8/7/7/7) lifts your language score, and an Express Entry-aligned Provincial Nominee Program adds 600 points on its own.";
   }
 
   const formattedSummary =
-    `🍁 *Canada Express Entry CRS Scorecard*\n\n` +
-    `📊 *Total Estimated Score: ${totalScore} / 600*\n` +
+    `🍁 *Canada Express Entry CRS Estimate*\n\n` +
+    `📊 *Estimated Score: ${totalScore}* (official CRS scale: 0–${CRS_OFFICIAL_MAX})\n` +
     `🎯 *Profile Tier:* ${tierLabel}\n\n` +
     `*Points Breakdown:*\n` +
-    `• Age Points: ${agePoints}/110\n` +
+    `• Age: ${agePoints}/110\n` +
     `• Education: ${educationPoints}/150\n` +
-    `• English (CLB): ${languagePoints}/136\n` +
-    `• Work Experience: ${experiencePoints}/50\n` +
-    (bonusPoints > 0 ? `• Bonus Points: ${bonusPoints}\n` : "") +
-    `\n💡 *Recommendation:*\n${recommendation}`;
+    `• First official language: ${languagePoints}/136\n` +
+    `• Foreign work experience: ${experiencePoints}/50\n` +
+    (bonusPoints > 0 ? `• Bonus (Canadian experience / nomination): ${bonusPoints}\n` : "") +
+    `\n💡 *Recommendation:*\n${recommendation}\n\n` +
+    `_${CRS_DISCLAIMER}_`;
 
   return {
     totalScore,
-    maxPossible: 600,
+    maxPossible: CRS_MODELLED_MAX,
+    officialMax: CRS_OFFICIAL_MAX,
+    disclaimer: CRS_DISCLAIMER,
     breakdown: { agePoints, educationPoints, languagePoints, experiencePoints, bonusPoints },
     tier,
     tierLabel,
@@ -113,17 +153,24 @@ export function calculateCRS(input: CRSCalculatorInput): CRSCalculationResult {
   };
 }
 
+export const AUSTRALIA_DISCLAIMER =
+  "Unofficial estimate for guidance only — not a Department of Home Affairs assessment. It omits partner skills, study in Australia, community language, professional year and state nomination points. Reaching the pass mark does not guarantee an invitation.";
+
 /**
  * Calculates Australian General Skilled Migration (Subclass 189 / 190 / 491) points.
  */
 export function calculateAustraliaPoints(input: AustraliaPointsInput): AustraliaPointsResult {
+  // 45+ scores nothing and is outside the GSM age limit. It was missing
+  // from the table, so the `?? 15` fallback quietly credited an
+  // over-45 applicant with the 40-44 bracket's points.
   const agePts =
     {
       "25_32": 30,
       "18_24": 25,
       "33_39": 25,
       "40_44": 15,
-    }[input.ageBracket] ?? 15;
+      "45_plus": 0,
+    }[input.ageBracket] ?? 0;
 
   const engPts =
     {
@@ -137,7 +184,7 @@ export function calculateAustraliaPoints(input: AustraliaPointsInput): Australia
       doctorate: 20,
       bachelor_master: 15,
       diploma_trade: 10,
-    }[input.qualification] ?? 10;
+    }[input.qualification] ?? 0;
 
   const expPts =
     {
@@ -157,14 +204,15 @@ export function calculateAustraliaPoints(input: AustraliaPointsInput): Australia
 
   const formattedSummary =
     `🦘 *Australia Skilled Migration (189/190) Scorecard*\n\n` +
-    `📊 *Total Points: ${total}* (Pass Mark: ${passMark})\n` +
+    `📊 *Estimated Points: ${total}* (Pass Mark: ${passMark})\n` +
     `🎯 *Status:* ${isEligible ? "✅ Meets Minimum Requirement" : "⚠️ Below 65-Point Cutoff"}\n\n` +
     `*Points Breakdown:*\n` +
     `• Age: ${agePts} pts\n` +
     `• English: ${engPts} pts\n` +
     `• Qualification: ${qualPts} pts\n` +
     `• Experience: ${expPts} pts\n\n` +
-    nextStepAdvice;
+    nextStepAdvice +
+    `\n\n_${AUSTRALIA_DISCLAIMER}_`;
 
   return {
     totalPoints: total,

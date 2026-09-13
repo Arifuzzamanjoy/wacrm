@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import type { ChecklistTemplateItem, DocumentStatus } from "@/types";
 
+/** `YYYY-MM-DD`, the shape Postgres `date` columns accept. */
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A date string is valid only if it round-trips: `2026-02-31` matches
+ * the regex but is not a real day, and Postgres would reject it with an
+ * opaque 500 rather than a useful 400.
+ */
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE_RE.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 const DOCUMENT_STATUSES: DocumentStatus[] = [
   "missing",
   "submitted",
@@ -44,6 +58,21 @@ export async function POST(
     const ctx = await requireRole("agent");
     const { id: contactId } = await params;
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+
+    // The contact id comes from the path, not from a scoped query, so
+    // confirm it is ours before writing rows that reference it. Without
+    // this an agent could hang documents off another account's contact
+    // (the insert carries *our* account_id, so RLS would allow it).
+    const { data: owningContact } = await ctx.supabase
+      .from("contacts")
+      .select("id")
+      .eq("id", contactId)
+      .eq("account_id", ctx.accountId)
+      .maybeSingle();
+
+    if (!owningContact) {
+      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+    }
 
     // Case 1: Apply standard template
     if (typeof body.template_id === "string" && body.template_id.trim()) {
@@ -110,6 +139,34 @@ export async function POST(
       );
     }
 
+    // PATCH already validates these two; POST was casting them straight
+    // through, so a bad value surfaced as a 500 from the DB CHECK
+    // constraint instead of a 400 the caller can act on.
+    let status: DocumentStatus = "missing";
+    if ("status" in body && body.status !== undefined && body.status !== null) {
+      if (
+        typeof body.status !== "string" ||
+        !DOCUMENT_STATUSES.includes(body.status as DocumentStatus)
+      ) {
+        return NextResponse.json(
+          { error: `Invalid status. Expected one of: ${DOCUMENT_STATUSES.join(", ")}` },
+          { status: 400 }
+        );
+      }
+      status = body.status as DocumentStatus;
+    }
+
+    let expiryDate: string | null = null;
+    if (typeof body.expiry_date === "string" && body.expiry_date.trim()) {
+      if (!isValidIsoDate(body.expiry_date.trim())) {
+        return NextResponse.json(
+          { error: "expiry_date must be a valid YYYY-MM-DD date" },
+          { status: 400 }
+        );
+      }
+      expiryDate = body.expiry_date.trim();
+    }
+
     const { data: insertedDoc, error: insertDocError } = await ctx.supabase
       .from("contact_documents")
       .insert({
@@ -119,10 +176,10 @@ export async function POST(
         title,
         description: typeof body.description === "string" ? body.description.trim() || null : null,
         is_mandatory: typeof body.is_mandatory === "boolean" ? body.is_mandatory : true,
-        status: (body.status as DocumentStatus) || "missing",
+        status,
         file_url: typeof body.file_url === "string" ? body.file_url : null,
         message_id: typeof body.message_id === "string" ? body.message_id : null,
-        expiry_date: typeof body.expiry_date === "string" ? body.expiry_date : null,
+        expiry_date: expiryDate,
       })
       .select()
       .single();
@@ -173,7 +230,17 @@ export async function PATCH(
       updatePayload.message_id = typeof body.message_id === "string" ? body.message_id : null;
     }
     if ("expiry_date" in body) {
-      updatePayload.expiry_date = typeof body.expiry_date === "string" ? body.expiry_date : null;
+      if (typeof body.expiry_date === "string" && body.expiry_date.trim()) {
+        if (!isValidIsoDate(body.expiry_date.trim())) {
+          return NextResponse.json(
+            { error: "expiry_date must be a valid YYYY-MM-DD date" },
+            { status: 400 }
+          );
+        }
+        updatePayload.expiry_date = body.expiry_date.trim();
+      } else {
+        updatePayload.expiry_date = null;
+      }
     }
     if ("rejection_reason" in body) {
       updatePayload.rejection_reason =

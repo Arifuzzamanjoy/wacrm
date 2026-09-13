@@ -2,6 +2,22 @@ import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import type { CaseMemberRole } from "@/types";
 
+/** Mirrors the `case_members_role_check` CHECK in migration 040. */
+const CASE_MEMBER_ROLES: CaseMemberRole[] = [
+  "primary",
+  "spouse",
+  "child",
+  "parent",
+  "co_applicant",
+  "dependent",
+  "nominee",
+  "guarantor",
+  "representative",
+  "stakeholder",
+  "reference",
+  "other",
+];
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -58,6 +74,13 @@ export async function POST(
 
     if (!contactId) {
       return NextResponse.json({ error: "contact_id is required" }, { status: 400 });
+    }
+
+    if (!CASE_MEMBER_ROLES.includes(role)) {
+      return NextResponse.json(
+        { error: `role must be one of: ${CASE_MEMBER_ROLES.join(", ")}` },
+        { status: 400 }
+      );
     }
 
     // Verify case exists in this account

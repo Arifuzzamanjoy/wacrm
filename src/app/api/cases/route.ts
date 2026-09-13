@@ -2,6 +2,37 @@ import { NextResponse } from "next/server";
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
 import type { CaseStatus } from "@/types";
 
+/** Mirrors the `cases_status_check` CHECK constraint in migration 040. */
+const CASE_STATUSES: CaseStatus[] = [
+  "active",
+  "in_progress",
+  "submitted",
+  "approved",
+  "completed",
+  "closed",
+  "on_hold",
+  "cancelled",
+];
+
+/** Mirrors the `case_members_role_check` CHECK in migration 040. */
+const CASE_MEMBER_ROLES = [
+  "primary",
+  "spouse",
+  "child",
+  "parent",
+  "co_applicant",
+  "dependent",
+  "nominee",
+  "guarantor",
+  "representative",
+  "stakeholder",
+  "reference",
+  "other",
+];
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function GET(request: Request) {
   try {
     const ctx = await requireRole("viewer");
@@ -31,6 +62,17 @@ export async function GET(request: Request) {
     }
 
     if (contactId) {
+      // PostgREST `.or()` takes a filter *expression*, not bound
+      // parameters, so an id containing a comma or paren would be parsed
+      // as extra filter syntax rather than as a value. Reject anything
+      // that isn't a uuid before it gets interpolated below.
+      if (!UUID_RE.test(contactId)) {
+        return NextResponse.json(
+          { error: "contact_id must be a uuid" },
+          { status: 400 }
+        );
+      }
+
       // Find all cases where this contact is either the primary contact or a member
       const { data: memberRows, error: memberErr } = await ctx.supabase
         .from("case_members")
@@ -77,6 +119,13 @@ export async function POST(request: Request) {
     const description =
       typeof body.description === "string" ? body.description.trim() || null : null;
     const status = (typeof body.status === "string" ? body.status.trim() : "active") as CaseStatus;
+
+    if (!CASE_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: `status must be one of: ${CASE_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
     const metadata =
       body.metadata && typeof body.metadata === "object" ? body.metadata : {};
 
@@ -126,18 +175,38 @@ export async function POST(request: Request) {
 
     // If additional members were passed in payload, add them
     if (Array.isArray(body.additional_members) && body.additional_members.length > 0) {
-      const additionalRows = body.additional_members
+      const candidates = body.additional_members
         .filter(
-          (m: unknown): m is { contact_id: string; role: string; label?: string; notes?: string } =>
-            typeof m === "object" && m !== null && "contact_id" in m && (m as { contact_id: string }).contact_id !== primaryContactId
+          (m: unknown): m is { contact_id: string; role?: string; label?: string; notes?: string } =>
+            typeof m === "object" &&
+            m !== null &&
+            typeof (m as { contact_id?: unknown }).contact_id === "string" &&
+            (m as { contact_id: string }).contact_id !== primaryContactId
         )
         .map((m) => ({
-          case_id: createdCase.id,
           contact_id: m.contact_id,
-          role: m.role || "other",
+          role: CASE_MEMBER_ROLES.includes(m.role ?? "") ? m.role! : "other",
           label: m.label || null,
           notes: m.notes || null,
         }));
+
+      // Only contacts belonging to this account may be linked. The
+      // case_members RLS policy checks the *case's* account, not the
+      // contact's, so without this a caller could name another tenant's
+      // contact id and pull it into their case.
+      const memberContactIds = [...new Set(candidates.map((m) => m.contact_id))];
+      const { data: ownedContacts } = memberContactIds.length
+        ? await ctx.supabase
+            .from("contacts")
+            .select("id")
+            .eq("account_id", ctx.accountId)
+            .in("id", memberContactIds)
+        : { data: [] as { id: string }[] };
+
+      const ownedIds = new Set((ownedContacts ?? []).map((c) => c.id as string));
+      const additionalRows = candidates
+        .filter((m) => ownedIds.has(m.contact_id))
+        .map((m) => ({ case_id: createdCase.id, ...m }));
 
       if (additionalRows.length > 0) {
         const { error: membersErr } = await ctx.supabase

@@ -33,7 +33,7 @@ describe('POST /api/immigration/calculate-crs', () => {
         education: 'masters',
         languageClb: 'clb_9',
         foreignExperienceYears: '3_plus',
-        hasJobOfferOrPnp: true,
+        hasProvincialNomination: true,
       }),
     });
 
@@ -43,10 +43,43 @@ describe('POST /api/immigration/calculate-crs', () => {
     const data = await response.json();
     expect(data.ok).toBe(true);
     expect(data.type).toBe('canada_crs');
-    // 110 + 135 + 124 + 50 + 50 = 469
-    expect(data.result.totalScore).toBe(469);
-    expect(data.result.tier).toBe('moderate');
-    expect(data.result.breakdown.bonusPoints).toBe(50);
+    // 110 + 135 + 124 + 50 + 600 (nomination) = 1019
+    expect(data.result.totalScore).toBe(1019);
+    expect(data.result.tier).toBe('high_priority');
+    expect(data.result.breakdown.bonusPoints).toBe(600);
+  });
+
+  it('rejects an unrecognised enum value instead of scoring it', async () => {
+    const request = new Request('http://localhost/api/immigration/calculate-crs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'canada_crs',
+        ageRange: '18-29', // hyphen, not underscore
+        education: 'masters',
+        languageClb: 'clb_9',
+        foreignExperienceYears: '3_plus',
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain('ageRange');
+  });
+
+  it('rejects a missing required factor rather than defaulting it', async () => {
+    // The old route defaulted every absent field to its best-scoring
+    // value, so a partial payload produced a flattering score that got
+    // read out to the applicant as advice.
+    const request = new Request('http://localhost/api/immigration/calculate-crs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'canada_crs', ageRange: '40_44' }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain('education');
   });
 
   it('calculates Australia Points test successfully', async () => {

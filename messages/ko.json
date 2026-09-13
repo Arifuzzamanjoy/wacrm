@@ -370,7 +370,8 @@
       "markWaived": "해당 없음으로 표시",
       "waivedHint": "이 항목은 이 고객에게 해당되지 않습니다.",
       "unwaive": "다시 필수로 표시",
-      "waivedSuccess": "\"{title}\" 항목이 해당 없음으로 표시되었습니다"
+      "waivedSuccess": "\"{title}\" 항목이 해당 없음으로 표시되었습니다",
+      "toastDeleteFailed": "항목을 삭제하지 못했습니다"
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",
@@ -1964,7 +1965,11 @@
     "memberRemoved": "멤버가 케이스에서 제거되었습니다",
     "caseCreated": "케이스가 생성되었습니다",
     "caseUpdated": "케이스가 업데이트되었습니다",
-    "caseDeleted": "케이스가 삭제되었습니다"
+    "caseDeleted": "케이스가 삭제되었습니다",
+    "toastMemberAlreadyAdded": "연락처가 이미 구성원 목록에 있습니다",
+    "toastTitleRequired": "케이스 제목을 입력하세요",
+    "toastTypeRequired": "케이스 유형을 지정하세요",
+    "toastOpenChatFailed": "채팅을 열지 못했습니다"
   },
   "Compliance": {
     "title": "컴플라이언스 및 문서 만료 관리",
@@ -1999,7 +2004,16 @@
     "settingsTitle": "컴플라이언스 알림 설정",
     "autoAlertsToggle": "매일 자동 WhatsApp 만료 알림 활성화",
     "thresholds": "알림 임계값",
-    "saveSettings": "설정 저장"
+    "saveSettings": "설정 저장",
+    "toastLoadFailed": "규정 준수 기록을 불러오지 못했습니다",
+    "toastSettingsLoadFailed": "설정을 불러오지 못했습니다",
+    "toastSettingsSaved": "규정 준수 알림 설정이 업데이트되었습니다",
+    "toastSettingsSaveFailed": "설정을 업데이트하지 못했습니다",
+    "toastScanFailed": "규정 준수 검사를 실행하지 못했습니다",
+    "toastExpiryRequired": "유효한 만료일을 입력하세요",
+    "toastExpirySaved": "문서 만료일이 업데이트되었습니다",
+    "toastSaveFailed": "변경 사항을 저장하지 못했습니다",
+    "toastReminderFailed": "WhatsApp 알림을 전송하지 못했습니다"
   },
   "Calculator": {
     "title": "캐나다 익스프레스 엔트리 CRS 계산기",
@@ -2013,7 +2027,7 @@
     "experienceLabel": "전문 직무 경력",
     "bonusesLabel": "추가 가산점 요건",
     "canadianExpLabel": "캐나다 1년 이상 전문 경력 (+40점)",
-    "jobOfferPnpLabel": "취업 제안 또는 주정부 노미네이션 (+50점)",
+    "provincialNominationLabel": "주정부 지명 (+600점)",
     "totalScore": "예상 총 CRS 점수",
     "breakdown": "항목별 점수",
     "sendToChat": "WhatsApp으로 성적표 전송",
@@ -2034,6 +2048,7 @@
       "budgetNone": "예산 없음",
     "leadAuthority": "의사 결정권",
     "leadNeed": "필요성 및 긴급도",
-    "leadTimeline": "목표 일정"
+    "leadTimeline": "목표 일정",
+    "toastCopied": "점수표가 클립보드에 복사되었습니다"
   }
 }

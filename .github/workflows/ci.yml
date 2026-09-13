@@ -30,15 +30,20 @@ jobs:
       ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
       META_APP_SECRET: 'ci-dummy-meta-secret'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        # `npm ci` installs exactly what package-lock.json pins and fails
+        # if the lockfile and manifest disagree. `npm install` resolves
+        # fresh and rewrites the lockfile, so CI stops testing the same
+        # dependency tree production gets — and quietly drifts past the
+        # security `overrides` block in package.json.
+        run: npm ci
 
       - name: Lint
         run: npm run lint
